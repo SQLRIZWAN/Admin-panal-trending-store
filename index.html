@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Store - Admin Panel</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00c853',
+                        secondary: '#ffd600',
+                        danger: '#ff3d00',
+                        gold: '#ffd700',
+                        bgDeep: '#0b0e11',
+                        surface: '#151a21',
+                        surfaceLight: '#1e2329',
+                        border: '#2b3139',
+                        textGray: '#848e9c',
+                        admin: '#00c853'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; overflow-x: hidden; font-size: 14px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c853; }
+        
+        .glass { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; }
+        
+        /* Sidebar Styles */
+        .sidebar { 
+            position: fixed; 
+            left: 0; 
+            top: 0; 
+            width: 280px; 
+            height: 100vh; 
+            background: #151a21; 
+            border-right: 1px solid #2b3139; 
+            z-index: 1000; 
+            overflow-y: auto; 
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateX(-100%);
+        }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.8); 
+            z-index: 999; 
+            opacity: 0; 
+            visibility: hidden; 
+            transition: all 0.3s; 
+        }
+        .sidebar-overlay.open { opacity: 1; visibility: visible; }
+        
+        @media (min-width: 1024px) { 
+            .sidebar { transform: translateX(0); position: fixed; }
+            .sidebar-overlay { display: none; }
+            .main-content { margin-left: 280px; }
+        }
+        
+        .main-content { min-height: 100vh; padding: 20px; transition: margin-left 0.3s; }
+        
+        /* Nav Items - Website jaisa */
+        .nav-item { 
+            padding: 12px 20px; 
+            margin: 4px 16px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            color: #848e9c;
+            border: 1px solid transparent;
+        }
+        .nav-item:hover { 
+            background: #1e2329; 
+            color: #fff; 
+            border-color: #2b3139;
+        }
+        .nav-item.active { 
+            background: rgba(0, 200, 83, 0.15); 
+            color: #00c853; 
+            border: 1px solid rgba(0, 200, 83, 0.3);
+            font-weight: 600;
+        }
+        
+        /* Button Styles - Website jaisa */
+        .btn-animated { 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            position: relative; 
+            overflow: hidden; 
+        }
+        .btn-animated:active { transform: scale(0.95); }
+        
+        .btn-primary { 
+            background: #00c853; 
+            color: #000; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            border: none; 
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary:hover { 
+            background: #00b34a; 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 20px rgba(0, 200, 83, 0.3);
+        }
+        
+        .btn-danger { 
+            background: #ff3d00; 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            border: none; 
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        .btn-danger:hover { background: #e63600; transform: translateY(-2px); }
+        
+        .btn-secondary { 
+            background: #1e2329; 
+            color: #fff; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            border: 1px solid #2b3139; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { 
+            background: #2b3139; 
+            border-color: #00c853;
+            color: #00c853;
+        }
+        
+        /* Cards */
+        .admin-card { 
+            background: linear-gradient(145deg, #151a21, #1e2329); 
+            border: 1px solid #2b3139; 
+            border-radius: 16px; 
+            transition: all 0.3s; 
+            overflow: hidden;
+        }
+        .admin-card:hover { 
+            border-color: rgba(0, 200, 83, 0.3); 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-card { 
+            background: linear-gradient(135deg, #151a21 0%, #1e2329 100%); 
+            border: 1px solid #2b3139; 
+            border-radius: 16px; 
+            padding: 24px; 
+            position: relative; 
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        .stat-card:hover {
+            border-color: rgba(0, 200, 83, 0.3);
+            transform: translateY(-2px);
+        }
+        .stat-card::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 4px; 
+            height: 100%; 
+            background: #00c853; 
+        }
+        
+        /* Transaction Cards with User Profile */
+        .transaction-card {
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .transaction-card:hover {
+            border-color: rgba(0, 200, 83, 0.2);
+            background: #1a1f26;
+        }
+        
+        .user-avatar { 
+            width: 48px; 
+            height: 48px; 
+            border-radius: 50%; 
+            object-fit: cover; 
+            border: 2px solid #00c853;
+        }
+        
+        .badge { 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-success { background: rgba(0, 200, 83, 0.2); color: #00c853; border: 1px solid rgba(0, 200, 83, 0.3); }
+        .badge-warning { background: rgba(255, 214, 0, 0.2); color: #ffd600; border: 1px solid rgba(255, 214, 0, 0.3); }
+        .badge-danger { background: rgba(255, 61, 0, 0.2); color: #ff3d00; border: 1px solid rgba(255, 61, 0, 0.3); }
+        .badge-info { background: rgba(0, 200, 83, 0.1); color: #00c853; border: 1px solid rgba(0, 200, 83, 0.2); }
+        
+        .search-input { 
+            background: #0b0e11; 
+            border: 1px solid #2b3139; 
+            color: #fff; 
+            padding: 12px 16px 12px 44px; 
+            border-radius: 12px; 
+            width: 100%; 
+            transition: all 0.2s; 
+            font-family: 'Inter', sans-serif;
+        }
+        .search-input:focus { 
+            outline: none; 
+            border-color: #00c853; 
+            box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+        }
+        
+        /* Dashboard Menu Buttons */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+        }
+        
+        .dashboard-btn {
+            background: linear-gradient(145deg, #151a21, #1e2329);
+            border: 1px solid #2b3139;
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .dashboard-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #00c853;
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+        .dashboard-btn:hover::before {
+            transform: scaleX(1);
+        }
+        .dashboard-btn:hover {
+            border-color: #00c853;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 200, 83, 0.15);
+        }
+        .dashboard-btn i {
+            font-size: 2rem;
+            margin-bottom: 12px;
+            color: #00c853;
+        }
+        .dashboard-btn h3 {
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .dashboard-btn p {
+            font-size: 12px;
+            color: #848e9c;
+        }
+        
+        /* Modal */
+        .modal { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.9); 
+            z-index: 10000; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+            backdrop-filter: blur(5px); 
+        }
+        .modal.active { display: flex; }
+        .modal-content { 
+            background: #151a21; 
+            border: 1px solid #2b3139; 
+            border-radius: 24px; 
+            width: 100%; 
+            max-width: 800px; 
+            max-height: 90vh; 
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        
+        .close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #1e2329;
+            border: 1px solid #2b3139;
+            color: #ff3d00;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .close-btn:hover {
+            background: #ff3d00;
+            color: white;
+            transform: rotate(90deg);
+        }
+        
+        /* Toggle Switch */
+        .switch { 
+            position: relative; 
+            width: 50px; 
+            height: 26px; 
+            background: #2b3139; 
+            border-radius: 13px; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+        }
+        .switch.active { background: #00c853; }
+        .switch::after { 
+            content: ''; 
+            position: absolute; 
+            width: 22px; 
+            height: 22px; 
+            background: white; 
+            border-radius: 50%; 
+            top: 2px; 
+            left: 2px; 
+            transition: all 0.3s; 
+        }
+        .switch.active::after { left: 26px; }
+        
+        @media (max-width: 1024px) { 
+            .main-content { margin-left: 0; }
+        }
+        
+        .tab-btn { 
+            padding: 12px 24px; 
+            border-bottom: 2px solid transparent; 
+            color: #848e9c; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .tab-btn.active { 
+            color: #00c853; 
+            border-bottom-color: #00c853; 
+        }
+        
+        /* Loading Animation */
+        .loader { 
+            width: 40px; 
+            height: 40px; 
+            border: 3px solid #2b3139; 
+            border-top-color: #00c853; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="fixed inset-0 bg-bgDeep z-[10001] flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-primary">
+                    <i class="fas fa-shield-alt text-3xl text-primary"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Admin Panel</h1>
+                <p class="text-textGray text-sm mt-2">Trending Store Management</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Admin Email</label>
+                    <input type="email" id="admin-email" class="search-input" style="padding-left: 16px;" placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Password</label>
+                    <input type="password" id="admin-password" class="search-input" style="padding-left: 16px;" placeholder="••••••••">
+                </div>
+                <button onclick="loginAdmin()" class="btn-primary w-full py-3 text-lg mt-6 btn-animated">
+                    <i class="fas fa-lock mr-2"></i>Secure Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar - Only 3 Items -->
+    <aside class="sidebar" id="sidebar">
+        <div class="p-6 border-b border-border flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                    <i class="fas fa-crown text-black text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-lg text-white">Admin</h2>
+                    <p class="text-textGray text-xs">Super Admin</p>
+                </div>
+            </div>
+            <!-- Close Button -->
+            <button onclick="toggleSidebar()" class="lg:hidden w-8 h-8 rounded-lg bg-surfaceLight flex items-center justify-center text-textGray hover:text-white transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <nav class="py-4 space-y-1">
+            <div class="nav-item active" onclick="showSection('dashboard'); toggleSidebar();">
+                <i class="fas fa-home w-5"></i>
+                <span>Dashboard</span>
+            </div>
+            <div class="nav-item" onclick="showSection('users'); toggleSidebar();">
+                <i class="fas fa-users w-5"></i>
+                <span>All Users</span>
+            </div>
+            <div class="nav-item" onclick="logoutAdmin();">
+                <i class="fas fa-power-off w-5"></i>
+                <span>Logout</span>
+            </div>
+        </nav>
+        
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-surface">
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-bgDeep border border-border">
+                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <i class="fas fa-user text-black text-xs"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate text-white">Admin User</p>
+                    <p class="text-xs text-textGray truncate">Online</p>
+                </div>
+                <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+        <!-- Header -->
+        <header class="glass rounded-2xl p-4 mb-6 flex items-center justify-between sticky top-4 z-50">
+            <div class="flex items-center gap-4">
+                <button onclick="toggleSidebar()" class="w-10 h-10 rounded-xl bg-surfaceLight border border-border flex items-center justify-center text-textGray hover:text-primary hover:border-primary transition-all">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div>
+                    <h2 id="page-title" class="text-xl font-bold text-white">Dashboard</h2>
+                    <p class="text-textGray text-xs hidden sm:block">Manage your platform</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="refreshData()" class="w-10 h-10 rounded-xl bg-surfaceLight border border-border flex items-center justify-center text-textGray hover:text-primary transition-all" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="section-dashboard" class="space-y-6">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="stat-card">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-textGray text-sm mb-1">Total Users</p>
+                            <h3 id="stat-total-users" class="text-3xl font-bold text-white font-mono">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <i class="fas fa-users text-primary text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs">
+                        <span class="text-primary flex items-center gap-1">
+                            <i class="fas fa-arrow-up"></i> Live
+                        </span>
+                        <span class="text-textGray ml-2">Active Now</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-textGray text-sm mb-1">Total Balance</p>
+                            <h3 id="stat-total-balance" class="text-3xl font-bold text-white font-mono">₹0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <i class="fas fa-wallet text-primary text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-textGray">
+                        All users combined
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-textGray text-sm mb-1">Pending KYC</p>
+                            <h3 id="stat-pending-kyc" class="text-3xl font-bold text-white font-mono">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+                            <i class="fas fa-clock text-secondary text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-secondary">
+                        Verification required
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-textGray text-sm mb-1">Pending Withdrawals</p>
+                            <h3 id="stat-pending-withdrawals" class="text-3xl font-bold text-white font-mono">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center">
+                            <i class="fas fa-money-bill-wave text-danger text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-danger">
+                        Action required
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Menu Buttons (Yeh sab dashboard pe hain) -->
+            <div class="admin-card p-6">
+                <h3 class="font-bold text-lg mb-4 text-white">Quick Access</h3>
+                <div class="menu-grid">
+                    <div class="dashboard-btn" onclick="showSection('transactions')">
+                        <i class="fas fa-exchange-alt"></i>
+                        <h3 class="text-white">Transactions</h3>
+                        <p>Deposits & Withdrawals</p>
+                    </div>
+                    <div class="dashboard-btn" onclick="showSection('kyc')">
+                        <i class="fas fa-id-card"></i>
+                        <h3 class="text-white">KYC Requests</h3>
+                        <p>Verify user documents</p>
+                    </div>
+                    <div class="dashboard-btn" onclick="showSection('nft')">
+                        <i class="fas fa-image"></i>
+                        <h3 class="text-white">NFT Manager</h3>
+                        <p>Manage NFT collection</p>
+                    </div>
+                    <div class="dashboard-btn" onclick="showSection('investment')">
+                        <i class="fas fa-chart-pie"></i>
+                        <h3 class="text-white">Investment Plans</h3>
+                        <p>Create & edit plans</p>
+                    </div>
+                    <div class="dashboard-btn" onclick="showSection('editor')">
+                        <i class="fas fa-edit"></i>
+                        <h3 class="text-white">Website Editor</h3>
+                        <p>Edit content live</p>
+                    </div>
+                    <div class="dashboard-btn" onclick="showSection('settings')">
+                        <i class="fas fa-cog"></i>
+                        <h3 class="text-white">Settings</h3>
+                        <p>Payment & Config</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="admin-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-lg text-white">Recent Activity</h3>
+                    <button class="text-primary text-sm hover:underline">View All</button>
+                </div>
+                <div id="recent-activity" class="space-y-3">
+                    <div class="loader mx-auto"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Users Section -->
+        <section id="section-users" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div class="relative w-full md:w-96">
+                    <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-textGray"></i>
+                    <input type="text" id="user-search" class="search-input" placeholder="Search by name, phone, email..." oninput="searchUsers()">
+                </div>
+                <div class="flex gap-3 w-full md:w-auto">
+                    <button onclick="exportUsers()" class="btn-secondary flex-1 md:flex-none">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                    <button onclick="openAddUserModal()" class="btn-primary flex-1 md:flex-none">
+                        <i class="fas fa-plus mr-2"></i>Add User
+                    </button>
+                </div>
+            </div>
+
+            <div class="admin-card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-surfaceLight border-b border-border">
+                            <tr>
+                                <th class="text-left p-4 text-textGray font-semibold text-sm">User</th>
+                                <th class="text-left p-4 text-textGray font-semibold text-sm">Contact</th>
+                                <th class="text-left p-4 text-textGray font-semibold text-sm">Total Balance</th>
+                                <th class="text-left p-4 text-textGray font-semibold text-sm">KYC</th>
+                                <th class="text-left p-4 text-textGray font-semibold text-sm">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body" class="divide-y divide-border">
+                            <!-- Users loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transactions Section - PREMIUM UI with Profile -->
+        <section id="section-transactions" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-2">
+                <h3 class="text-xl font-bold text-white">Transaction Requests</h3>
+                <div class="flex gap-2 bg-surface p-1 rounded-xl border border-border">
+                    <button class="tab-btn active" onclick="showTransactionTab('deposits')">Deposits</button>
+                    <button class="tab-btn" onclick="showTransactionTab('withdrawals')">Withdrawals</button>
+                </div>
+            </div>
+
+            <!-- Deposits Panel -->
+            <div id="deposits-panel" class="space-y-4">
+                <div id="pending-deposits-list" class="grid grid-cols-1 gap-4">
+                    <!-- Deposit cards with user profile -->
+                </div>
+            </div>
+
+            <!-- Withdrawals Panel -->
+            <div id="withdrawals-panel" class="hidden space-y-4">
+                <div id="pending-withdrawals-list" class="grid grid-cols-1 gap-4">
+                    <!-- Withdrawal cards with user profile -->
+                </div>
+            </div>
+        </section>
+
+        <!-- KYC Section -->
+        <section id="section-kyc" class="hidden space-y-6">
+            <h3 class="text-xl font-bold text-white mb-4">KYC Verification Requests</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="kyc-requests-container">
+                <!-- KYC cards -->
+            </div>
+        </section>
+
+        <!-- NFT Manager -->
+        <section id="section-nft" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">NFT Collection</h3>
+                <button onclick="openAddNFTModal()" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Add NFT
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-nft-list">
+                <!-- NFTs -->
+            </div>
+        </section>
+
+        <!-- Investment Plans -->
+        <section id="section-investment" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">Investment Plans</h3>
+                <button onclick="openAddPlanModal()" class="btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Create Plan
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="admin-plans-list">
+                <!-- Plans -->
+            </div>
+        </section>
+
+        <!-- Website Editor -->
+        <section id="section-editor" class="hidden space-y-6">
+            <div class="admin-card p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">Live Website Editor</h3>
+                        <p class="text-textGray text-sm">Changes reflect immediately on main website</p>
+                    </div>
+                    <button onclick="saveWebsiteChanges()" class="btn-primary">
+                        <i class="fas fa-save mr-2"></i>Publish Changes
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                        <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Hero Title</label>
+                        <input type="text" id="edit-hero-title" class="search-input" style="padding-left: 16px;" placeholder="Main heading...">
+                    </div>
+                    <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                        <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Hero Subtitle</label>
+                        <input type="text" id="edit-hero-subtitle" class="search-input" style="padding-left: 16px;" placeholder="Sub heading...">
+                    </div>
+                    <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                        <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Primary Color</label>
+                        <div class="flex gap-3">
+                            <input type="color" id="edit-primary-color" class="h-12 w-24 rounded-lg bg-transparent border border-border cursor-pointer">
+                            <input type="text" id="edit-primary-color-text" class="search-input flex-1" style="padding-left: 16px;" placeholder="#00c853">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="section-settings" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="admin-card p-6">
+                    <h3 class="font-bold text-lg mb-4 text-white">Payment Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-textGray text-xs uppercase font-semibold mb-2 block">UPI ID</label>
+                            <input type="text" id="setting-upi" class="search-input" style="padding-left: 16px;" placeholder="admin@upi">
+                        </div>
+                        <div>
+                            <label class="text-textGray text-xs uppercase font-semibold mb-2 block">USDT Address (BEP20)</label>
+                            <input type="text" id="setting-usdt" class="search-input" style="padding-left: 16px;" placeholder="0x...">
+                        </div>
+                        <button onclick="saveSettings()" class="btn-primary w-full">Save Settings</button>
+                    </div>
+                </div>
+
+                <div class="admin-card p-6">
+                    <h3 class="font-bold text-lg mb-4 text-white">Limits & Config</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Min Deposit (₹)</label>
+                            <input type="number" id="setting-min-deposit" class="search-input" style="padding-left: 16px;" value="500">
+                        </div>
+                        <div>
+                            <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Min Withdrawal (₹)</label>
+                            <input type="number" id="setting-min-withdraw" class="search-input" style="padding-left: 16px;" value="500">
+                        </div>
+                        <div class="flex items-center justify-between p-4 bg-bgDeep rounded-xl border border-border">
+                            <span class="text-white">Maintenance Mode</span>
+                            <div class="switch" id="maintenance-toggle" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- User Detail Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="p-6 border-b border-border flex items-center justify-between bg-surfaceLight">
+                <h3 class="text-xl font-bold text-white">User Profile</h3>
+                <button onclick="closeUserModal()" class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" id="user-detail-content">
+                <!-- User details -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        let currentAdmin = null;
+        let allUsers = [];
+        let usersMap = {}; // For quick lookup
+        
+        // Auth Check
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentAdmin = user;
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                document.getElementById('sidebar').classList.add('open');
+                initDashboard();
+            }
+        });
+        
+        function loginAdmin() {
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(err => alert('Login Failed: ' + err.message));
+        }
+        
+        function logoutAdmin() {
+            auth.signOut();
+            location.reload();
+        }
+        
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (window.innerWidth >= 1024) {
+                // Desktop: Toggle visibility
+                if (sidebar.style.transform === 'translateX(-100%)') {
+                    sidebar.style.transform = 'translateX(0)';
+                } else {
+                    sidebar.style.transform = 'translateX(-100%)';
+                }
+            } else {
+                // Mobile: Use classes
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('open');
+            }
+        }
+        
+        // Initialize
+        function initDashboard() {
+            loadStats();
+            loadRecentActivity();
+            loadUsers();
+            loadTransactions();
+            loadKYC();
+            loadSettings();
+        }
+        
+        function refreshData() {
+            showToast('Refreshing...');
+            initDashboard();
+        }
+        
+        // Navigation
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            
+            // Show selected
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            // Update title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'users': 'All Users',
+                'transactions': 'Transactions',
+                'kyc': 'KYC Requests',
+                'nft': 'NFT Manager',
+                'investment': 'Investment Plans',
+                'editor': 'Website Editor',
+                'settings': 'Settings'
+            };
+            document.getElementById('page-title').textContent = titles[section] || section;
+            
+            // Close sidebar on mobile after selection
+            if (window.innerWidth < 1024) {
+                toggleSidebar();
+            }
+        }
+        
+        // Stats
+        function loadStats() {
+            // Users count & balance
+            db.collection('users').onSnapshot(snapshot => {
+                document.getElementById('stat-total-users').textContent = snapshot.size;
+                
+                let totalBalance = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    totalBalance += (data.spotBalance || 0) + (data.futuresBalance || 0) + 
+                                   (data.marginBalance || 0) + (data.investBalance || 0) + (data.nftBalance || 0);
+                });
+                document.getElementById('stat-total-balance').textContent = '₹' + totalBalance.toLocaleString();
+            });
+            
+            // Pending counts
+            db.collection('kyc').where('status', '==', 'pending').onSnapshot(snap => {
+                document.getElementById('stat-pending-kyc').textContent = snap.size;
+            });
+            
+            db.collection('withdrawals').where('status', '==', 'pending').onSnapshot(snap => {
+                document.getElementById('stat-pending-withdrawals').textContent = snap.size;
+            });
+        }
+        
+        // Recent Activity
+        function loadRecentActivity() {
+            const container = document.getElementById('recent-activity');
+            
+            db.collection('payments').orderBy('timestamp', 'desc').limit(5).onSnapshot(snap => {
+                let html = '';
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                        <div class="flex items-center justify-between p-4 bg-bgDeep rounded-xl border border-border hover:border-primary/30 transition-colors">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <i class="fas fa-arrow-down text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-white">Deposit Request</p>
+                                    <p class="text-textGray text-xs">${data.userName || 'Unknown'} • ${data.timestamp ? new Date(data.timestamp.toDate()).toLocaleTimeString() : 'Now'}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-primary font-mono">₹${data.amount}</p>
+                                <span class="badge badge-warning text-[10px]">Pending</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p class="text-textGray text-center py-8">No recent activity</p>';
+            });
+        }
+        
+        // Users
+        function loadUsers() {
+            db.collection('users').onSnapshot(snapshot => {
+                allUsers = [];
+                usersMap = {};
+                const tbody = document.getElementById('users-table-body');
+                let html = '';
+                
+                snapshot.forEach(doc => {
+                    const user = { id: doc.id, ...doc.data() };
+                    allUsers.push(user);
+                    usersMap[doc.id] = user;
+                    
+                    const totalBal = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                                    (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+                    
+                    html += `
+                        <tr class="hover:bg-surfaceLight/50 transition-colors group cursor-pointer" onclick="showUserDetail('${doc.id}')">
+                            <td class="p-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="${user.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover border border-border group-hover:border-primary transition-colors">
+                                    <div>
+                                        <p class="font-semibold text-white">${user.name || 'N/A'}</p>
+                                        <p class="text-textGray text-xs">${user.email || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4 text-textGray text-sm">${user.phone || 'N/A'}</td>
+                            <td class="p-4 font-bold text-primary font-mono">₹${totalBal.toLocaleString()}</td>
+                            <td class="p-4">
+                                <span class="badge ${user.kycStatus === 'verified' ? 'badge-success' : user.kycStatus === 'pending' ? 'badge-warning' : 'badge-danger'} text-[10px]">
+                                    ${user.kycStatus || 'Unverified'}
+                                </span>
+                            </td>
+                            <td class="p-4">
+                                <button onclick="event.stopPropagation(); editUserBalance('${doc.id}')" class="w-8 h-8 rounded-lg bg-surfaceLight text-primary hover:bg-primary hover:text-black transition-all mr-2" title="Edit Balance">
+                                    <i class="fas fa-wallet"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteUser('${doc.id}')" class="w-8 h-8 rounded-lg bg-surfaceLight text-danger hover:bg-danger hover:text-white transition-all" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html || '<tr><td colspan="5" class="p-8 text-center text-textGray">No users found</td></tr>';
+            });
+        }
+        
+        function searchUsers() {
+            const term = document.getElementById('user-search').value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+        
+        // Transactions with User Profile
+        function loadTransactions() {
+            // Deposits with user details
+            db.collection('payments').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snap => {
+                const container = document.getElementById('pending-deposits-list');
+                let html = '';
+                
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const user = usersMap[data.uid] || {};
+                    
+                    html += `
+                        <div class="transaction-card">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <!-- User Profile Section -->
+                                <div class="flex items-center gap-4">
+                                    <img src="${user.avatar || 'https://via.placeholder.com/50'}" class="user-avatar">
+                                    <div>
+                                        <h4 class="font-bold text-white text-lg">${user.name || data.userName || 'Unknown'}</h4>
+                                        <p class="text-textGray text-sm">${user.phone || 'No phone'} • ${user.email || 'No email'}</p>
+                                        <div class="flex gap-2 mt-2">
+                                            <span class="badge badge-info text-[10px]">Deposit</span>
+                                            <span class="text-textGray text-xs">${data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'Just now'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Transaction Details -->
+                                <div class="flex-1 md:text-center md:border-x md:border-border md:px-6">
+                                    <p class="text-3xl font-bold text-primary font-mono mb-1">₹${data.amount}</p>
+                                    <p class="text-textGray text-xs">UTR: ${data.txid}</p>
+                                    ${data.usdtAmount ? `<p class="text-secondary text-xs mt-1">USDT: $${data.usdtAmount}</p>` : ''}
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="flex gap-3">
+                                    <button onclick="approveDeposit('${doc.id}', '${data.uid}', ${data.amount || 0})" class="btn-primary py-2 px-6 text-sm">
+                                        <i class="fas fa-check mr-2"></i>Approve
+                                    </button>
+                                    <button onclick="rejectDeposit('${doc.id}')" class="btn-secondary py-2 px-4 text-sm border-danger text-danger hover:bg-danger">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<div class="text-center py-12 text-textGray"><i class="fas fa-check-circle text-4xl mb-3 opacity-30"></i><p>No pending deposits</p></div>';
+            });
+            
+            // Withdrawals with user details
+            db.collection('withdrawals').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snap => {
+                const container = document.getElementById('pending-withdrawals-list');
+                let html = '';
+                
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const user = usersMap[data.uid] || {};
+                    
+                    html += `
+                        <div class="transaction-card border-l-4 border-l-danger">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <!-- User Profile -->
+                                <div class="flex items-center gap-4">
+                                    <img src="${user.avatar || 'https://via.placeholder.com/50'}" class="user-avatar border-danger">
+                                    <div>
+                                        <h4 class="font-bold text-white text-lg">${user.name || data.userName || 'Unknown'}</h4>
+                                        <p class="text-textGray text-sm">${user.phone || 'No phone'}</p>
+                                        <div class="flex gap-2 mt-2">
+                                            <span class="badge badge-danger text-[10px]">Withdrawal</span>
+                                            <span class="text-textGray text-xs">${data.account} Account</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Amount & Details -->
+                                <div class="flex-1 md:text-center md:border-x md:border-border md:px-6">
+                                    <p class="text-3xl font-bold text-danger font-mono mb-1">₹${data.amount}</p>
+                                    <p class="text-textGray text-xs">UPI: ${data.upi}</p>
+                                    <p class="text-textGray text-xs mt-1">Holder: ${data.accountHolderName || 'N/A'}</p>
+                                </div>
+                                
+                                <!-- Actions -->
+                                <div class="flex gap-3">
+                                    <button onclick="approveWithdrawal('${doc.id}')" class="btn-success py-2 px-6 text-sm bg-primary text-black font-bold rounded-xl hover:bg-green-400">
+                                        <i class="fas fa-check mr-2"></i>Pay Now
+                                    </button>
+                                    <button onclick="rejectWithdrawal('${doc.id}')" class="btn-secondary py-2 px-4 text-sm border-danger text-danger hover:bg-danger">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<div class="text-center py-12 text-textGray"><i class="fas fa-check-circle text-4xl mb-3 opacity-30"></i><p>No pending withdrawals</p></div>';
+            });
+        }
+        
+        function showTransactionTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('deposits-panel').classList.add('hidden');
+            document.getElementById('withdrawals-panel').classList.add('hidden');
+            document.getElementById(tab + '-panel').classList.remove('hidden');
+        }
+        
+        // Actions
+        function approveDeposit(docId, userId, amount) {
+            db.collection('payments').doc(docId).update({ status: 'approved', approvedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(() => {
+                db.collection('users').doc(userId).update({ spotBalance: firebase.firestore.FieldValue.increment(amount) });
+                showToast('Deposit approved & balance added');
+            });
+        }
+        
+        function rejectDeposit(docId) {
+            db.collection('payments').doc(docId).update({ status: 'rejected' })
+                .then(() => showToast('Deposit rejected'));
+        }
+        
+        function approveWithdrawal(docId) {
+            db.collection('withdrawals').doc(docId).update({ status: 'approved', paidAt: firebase.firestore.FieldValue.serverTimestamp() })
+                .then(() => showToast('Withdrawal marked as paid'));
+        }
+        
+        function rejectWithdrawal(docId) {
+            db.collection('withdrawals').doc(docId).update({ status: 'rejected' })
+                .then(() => showToast('Withdrawal rejected'));
+        }
+        
+        // KYC
+        function loadKYC() {
+            db.collection('kyc').where('status', '==', 'pending').onSnapshot(snap => {
+                const container = document.getElementById('kyc-requests-container');
+                let html = '';
+                
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const user = usersMap[data.uid] || {};
+                    
+                    html += `
+                        <div class="admin-card p-6 border border-border">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="${user.avatar || 'https://via.placeholder.com/40'}" class="w-12 h-12 rounded-full border border-primary">
+                                    <div>
+                                        <h4 class="font-bold text-white">${user.name || data.userName}</h4>
+                                        <p class="text-textGray text-xs">${data.documentType?.toUpperCase()}</p>
+                                    </div>
+                                </div>
+                                <span class="badge badge-warning">Pending</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div class="space-y-1">
+                                    <p class="text-xs text-textGray">Photo</p>
+                                    <img src="${data.photoUrl}" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity" onclick="window.open('${data.photoUrl}')">
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-xs text-textGray">Document</p>
+                                    <img src="${data.documentUrl}" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity" onclick="window.open('${data.documentUrl}')">
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <button onclick="verifyKYC('${doc.id}', '${data.uid}', true)" class="flex-1 btn-primary py-2 text-sm">
+                                    <i class="fas fa-check mr-2"></i>Verify
+                                </button>
+                                <button onclick="verifyKYC('${doc.id}', '${data.uid}', false)" class="flex-1 btn-secondary py-2 text-sm border-danger text-danger hover:bg-danger">
+                                    <i class="fas fa-times mr-2"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<div class="col-span-2 text-center py-12 text-textGray"><i class="fas fa-id-card text-4xl mb-3 opacity-30"></i><p>No pending KYC requests</p></div>';
+            });
+        }
+        
+        function verifyKYC(docId, userId, approved) {
+            const status = approved ? 'verified' : 'rejected';
+            db.collection('kyc').doc(docId).update({ status: status, processedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(() => {
+                db.collection('users').doc(userId).update({ kycStatus: status });
+                showToast(approved ? 'KYC Verified successfully' : 'KYC Rejected');
+            });
+        }
+        
+        // User Detail Modal
+        function showUserDetail(userId) {
+            const user = usersMap[userId];
+            if (!user) return;
+            
+            const modal = document.getElementById('user-modal');
+            const content = document.getElementById('user-detail-content');
+            
+            const totalBal = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                            (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+            
+            content.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="text-center md:text-left">
+                        <img src="${user.avatar || 'https://via.placeholder.com/100'}" class="w-24 h-24 rounded-full border-2 border-primary mx-auto md:mx-0 mb-3">
+                        <h3 class="text-xl font-bold text-white">${user.name || 'N/A'}</h3>
+                        <p class="text-textGray text-sm">${user.email || 'N/A'}</p>
+                        <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-border">
+                            <div class="w-2 h-2 rounded-full ${user.kycStatus === 'verified' ? 'bg-primary' : 'bg-secondary'}"></div>
+                            <span class="text-xs text-textGray uppercase">${user.kycStatus || 'Unverified'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 grid grid-cols-2 gap-3">
+                        <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                            <p class="text-textGray text-xs mb-1">Spot Balance</p>
+                            <p class="text-lg font-bold text-primary font-mono">₹${(user.spotBalance || 0).toLocaleString()}</p>
+                        </div>
+                        <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                            <p class="text-textGray text-xs mb-1">Futures</p>
+                            <p class="text-lg font-bold text-secondary font-mono">₹${(user.futuresBalance || 0).toLocaleString()}</p>
+                        </div>
+                        <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                            <p class="text-textGray text-xs mb-1">Investments</p>
+                            <p class="text-lg font-bold text-primary font-mono">₹${(user.investBalance || 0).toLocaleString()}</p>
+                        </div>
+                        <div class="p-4 bg-bgDeep rounded-xl border border-border">
+                            <p class="text-textGray text-xs mb-1">Total</p>
+                            <p class="text-lg font-bold text-white font-mono">₹${totalBal.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-border">
+                    <button onclick="addBalance('${userId}')" class="btn-primary py-3">
+                        <i class="fas fa-plus mr-2"></i>Add Balance
+                    </button>
+                    <button onclick="deductBalance('${userId}')" class="btn-secondary py-3 border-danger text-danger hover:bg-danger">
+                        <i class="fas fa-minus mr-2"></i>Deduct
+                    </button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.remove('active');
+        }
+        
+        function addBalance(userId) {
+            const amount = prompt('Enter amount to add (₹):');
+            if (!amount || isNaN(amount)) return;
+            
+            db.collection('users').doc(userId).update({
+                spotBalance: firebase.firestore.FieldValue.increment(parseFloat(amount))
+            }).then(() => showToast('₹' + amount + ' added to user'));
+        }
+        
+        function deductBalance(userId) {
+            const amount = prompt('Enter amount to deduct (₹):');
+            if (!amount || isNaN(amount)) return;
+            
+            db.collection('users').doc(userId).update({
+                spotBalance: firebase.firestore.FieldValue.increment(-parseFloat(amount))
+            }).then(() => showToast('₹' + amount + ' deducted from user'));
+        }
+        
+        function deleteUser(userId) {
+            if (!confirm('Delete this user permanently?')) return;
+            db.collection('users').doc(userId).delete().then(() => showToast('User deleted'));
+        }
+        
+        // Settings
+        function loadSettings() {
+            db.collection('admin').doc('config').onSnapshot(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('setting-upi').value = data.upi || '';
+                    document.getElementById('setting-usdt').value = data.usdtAddress || '';
+                    document.getElementById('setting-min-deposit').value = data.minDeposit || 500;
+                    document.getElementById('setting-min-withdraw').value = data.minWithdraw || 500;
+                }
+            });
+            
+            // Load website content for editor
+            db.collection('website').doc('content').onSnapshot(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('edit-hero-title').value = data.heroTitle || '';
+                    document.getElementById('edit-hero-subtitle').value = data.heroSubtitle || '';
+                }
+            });
+        }
+        
+        function saveSettings() {
+            db.collection('admin').doc('config').set({
+                upi: document.getElementById('setting-upi').value,
+                usdtAddress: document.getElementById('setting-usdt').value,
+                minDeposit: parseInt(document.getElementById('setting-min-deposit').value),
+                minWithdraw: parseInt(document.getElementById('setting-min-withdraw').value),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(() => showToast('Settings saved successfully'));
+        }
+        
+        function saveWebsiteChanges() {
+            db.collection('website').doc('content').set({
+                heroTitle: document.getElementById('edit-hero-title').value,
+                heroSubtitle: document.getElementById('edit-hero-subtitle').value,
+                primaryColor: document.getElementById('edit-primary-color').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(() => showToast('Website updated! Changes live now.'));
+        }
+        
+        // Color picker sync
+        document.getElementById('edit-primary-color')?.addEventListener('input', function() {
+            document.getElementById('edit-primary-color-text').value = this.value;
+        });
+        
+        // Toast
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 px-6 py-3 rounded-xl bg-primary text-black font-bold z-[10002] shadow-lg transform translate-x-full transition-transform duration-300';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // Dummy functions for NFT/Plans
+        function openAddNFTModal() { showToast('Add NFT - Connect to Form'); }
+        function openAddPlanModal() { showToast('Add Plan - Connect to Form'); }
+        function openAddUserModal() { showToast('Add User - Connect to Form'); }
+        function exportUsers() { showToast('Exporting CSV...'); }
+    </script>
+</body>
+      </html>
