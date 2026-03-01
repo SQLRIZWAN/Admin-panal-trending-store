@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Trending Store</title>
+    
+    <!-- Firebase (Sirf Firestore ke liye, Auth nahi) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #0b0e11; 
+            color: #eaecef; 
+            font-family: 'Inter', sans-serif; 
+            overflow-x: hidden;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c853; }
+        
+        /* Layout */
+        .app-container { display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #151a21;
+            border-right: 1px solid #2b3139;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #2b3139;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            color: #848e9c;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: #1e2329;
+            color: #fff;
+            border-color: #2b3139;
+        }
+        
+        .nav-item.active {
+            background: rgba(0, 200, 83, 0.1);
+            color: #00c853;
+            border-color: rgba(0, 200, 83, 0.3);
+            font-weight: 600;
+        }
+        
+        .sidebar-footer {
+            padding: 15px;
+            border-top: 1px solid #2b3139;
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 20px;
+            transition: margin-left 0.3s;
+        }
+        
+        /* Mobile Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 999;
+            display: none;
+            backdrop-filter: blur(4px);
+        }
+        
+        .sidebar-overlay.active { display: block; }
+        
+        /* Header */
+        .top-header {
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 20px;
+            z-index: 100;
+        }
+        
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+        }
+        
+        /* Tabs */
+        .tabs-container {
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 12px;
+            padding: 5px;
+            display: inline-flex;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: #848e9c;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover { color: #fff; }
+        .tab-btn.active {
+            background: #00c853;
+            color: #000;
+            font-weight: 600;
+        }
+        
+        /* Cards */
+        .stat-card {
+            background: linear-gradient(145deg, #151a21, #1e2329);
+            border: 1px solid #2b3139;
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: #00c853;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th {
+            text-align: left;
+            padding: 15px;
+            color: #848e9c;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #2b3139;
+            background: #1e2329;
+        }
+        
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #2b3139;
+            color: #eaecef;
+        }
+        
+        .data-table tr:hover td {
+            background: rgba(0, 200, 83, 0.02);
+        }
+        
+        /* Transaction Card with Profile */
+        .transaction-item {
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s;
+        }
+        
+        .transaction-item:hover {
+            border-color: rgba(0, 200, 83, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #00c853;
+        }
+        
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .badge-warning { background: rgba(255, 214, 0, 0.1); color: #ffd600; border: 1px solid rgba(255, 214, 0, 0.3); }
+        .badge-success { background: rgba(0, 200, 83, 0.1); color: #00c853; border: 1px solid rgba(0, 200, 83, 0.3); }
+        .badge-danger { background: rgba(255, 61, 0, 0.1); color: #ff3d00; border: 1px solid rgba(255, 61, 0, 0.3); }
+        
+        .search-input { 
+            background: #0b0e11; 
+            border: 1px solid #2b3139; 
+            color: #fff; 
+            padding: 12px 16px 12px 44px; 
+            border-radius: 12px; 
+            width: 100%; 
+            transition: all 0.2s; 
+            font-family: 'Inter', sans-serif;
+        }
+        .search-input:focus { 
+            outline: none; 
+            border-color: #00c853; 
+            box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+        }
+        
+        /* Website Editor */
+        .editor-container {
+            display: flex;
+            height: calc(100vh - 140px);
+            gap: 20px;
+        }
+        
+        .editor-sidebar {
+            width: 300px;
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .editor-preview {
+            flex: 1;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .editor-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        /* Buttons */
+        .btn-primary {
+            background: #00c853;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: #00b34a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 200, 83, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #1e2329;
+            color: #fff;
+            border: 1px solid #2b3139;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #00c853;
+            color: #00c853;
+        }
+        
+        .btn-danger {
+            background: #ff3d00;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal.active { display: flex; }
+        
+        .modal-content {
+            background: #151a21;
+            border: 1px solid #2b3139;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #2b3139;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close-btn {
+            background: #1e2329;
+            border: 1px solid #2b3139;
+            color: #ff3d00;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .close-btn:hover {
+            background: #ff3d00;
+            color: white;
+        }
+        
+        /* Form Elements */
+        .form-input {
+            width: 100%;
+            background: #0b0e11;
+            border: 1px solid #2b3139;
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #00c853;
+            box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+        }
+        
+        /* Sections */
+        .section { display: none; }
+        .section.active { display: block; }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #00c853;
+            color: #000;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 3000;
+            transform: translateX(150%);
+            transition: transform 0.3s;
+            box-shadow: 0 10px 30px rgba(0, 200, 83, 0.3);
+        }
+        
+        .toast.show { transform: translateX(0); }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .editor-container {
+                flex-direction: column;
+            }
+            .editor-sidebar {
+                width: 100%;
+                height: 200px;
+            }
+        }
+        
+        /* Login Screen Specific */
+        .login-input {
+            width: 100%;
+            background: #0b0e11;
+            border: 1px solid #2b3139;
+            color: #fff;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+        .login-input:focus {
+            outline: none;
+            border-color: #00c853;
+            box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.1);
+        }
+        .login-input::placeholder {
+            color: #848e9c;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Password Protection Screen -->
+    <div id="login-screen" style="position: fixed; inset: 0; background: #0b0e11; z-index: 5000; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: #151a21; border: 1px solid #2b3139; border-radius: 20px; padding: 40px; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);">
+            
+            <!-- Logo -->
+            <div style="width: 80px; height: 80px; background: rgba(0,200,83,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; border: 2px solid #00c853;">
+                <i class="fas fa-lock" style="font-size: 32px; color: #00c853;"></i>
+            </div>
+            
+            <h1 style="margin-bottom: 8px; color: #fff; font-size: 24px; font-weight: 700;">Admin Access</h1>
+            <p style="color: #848e9c; margin-bottom: 30px; font-size: 14px;">Trending Store Management Panel</p>
+            
+            <!-- Password Form -->
+            <div style="text-align: left; margin-bottom: 20px;">
+                <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Password</label>
+                <div style="position: relative;">
+                    <input type="password" id="admin-password" class="login-input" placeholder="Enter password" onkeypress="if(event.key==='Enter') checkPassword()">
+                    <button onclick="togglePassword()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #848e9c; cursor: pointer;">
+                        <i class="fas fa-eye" id="eye-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Login Button -->
+            <button onclick="checkPassword()" class="btn-primary" style="width: 100%; justify-content: center; padding: 14px; font-size: 16px;">
+                <i class="fas fa-unlock"></i> Access Panel
+            </button>
+
+            <div id="error-msg" style="color: #ff3d00; margin-top: 15px; font-size: 14px; display: none;">
+                <i class="fas fa-exclamation-circle"></i> Galat password!
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="app-container" id="appContainer" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #00c853; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-crown" style="color: #000; font-size: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; color: #fff;">Admin Panel</h3>
+                        <p style="font-size: 11px; color: #848e9c;">Trending Store</p>
+                    </div>
+                </div>
+                <button class="menu-toggle" onclick="toggleSidebar()" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <nav class="nav-menu">
+                <div class="nav-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" onclick="showSection('users')">
+                    <i class="fas fa-users"></i>
+                    <span>All Users</span>
+                </div>
+                <div class="nav-item" onclick="showSection('transactions')">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Transactions</span>
+                </div>
+                <div class="nav-item" onclick="showSection('kyc')">
+                    <i class="fas fa-id-card"></i>
+                    <span>KYC Requests</span>
+                </div>
+                <div class="nav-item" onclick="showSection('website')">
+                    <i class="fas fa-edit"></i>
+                    <span>Website Editor</span>
+                </div>
+                <div class="nav-item" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button onclick="logout()" class="btn-secondary" style="width: 100%; justify-content: center;">
+                    <i class="fas fa-power-off"></i> Lock Panel
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="menu-toggle" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 id="page-title" style="font-size: 20px; color: #fff;">Dashboard</h2>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button onclick="refreshData()" class="btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="sec-dashboard" class="section active">
+                <!-- Stats -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <p style="color: #848e9c; font-size: 13px; margin-bottom: 5px;">Total Users</p>
+                                <h3 id="stat-users" style="font-size: 28px; color: #fff;">0</h3>
+                            </div>
+                            <div style="width: 40px; height: 40px; background: rgba(0,200,83,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-users" style="color: #00c853;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <p style="color: #848e9c; font-size: 13px; margin-bottom: 5px;">Total Balance</p>
+                                <h3 id="stat-balance" style="font-size: 28px; color: #fff;">₹0</h3>
+                            </div>
+                            <div style="width: 40px; height: 40px; background: rgba(0,200,83,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-wallet" style="color: #00c853;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <p style="color: #848e9c; font-size: 13px; margin-bottom: 5px;">Pending Deposits</p>
+                                <h3 id="stat-deposits" style="font-size: 28px; color: #fff;">0</h3>
+                            </div>
+                            <div style="width: 40px; height: 40px; background: rgba(255,214,0,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-arrow-down" style="color: #ffd600;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <p style="color: #848e9c; font-size: 13px; margin-bottom: 5px;">Pending Withdrawals</p>
+                                <h3 id="stat-withdrawals" style="font-size: 28px; color: #fff;">0</h3>
+                            </div>
+                            <div style="width: 40px; height: 40px; background: rgba(255,61,0,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-arrow-up" style="color: #ff3d00;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity with Tabs -->
+                <div class="stat-card" style="padding: 0; overflow: hidden;">
+                    <div style="padding: 20px; border-bottom: 1px solid #2b3139; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <h3 style="color: #fff; font-size: 16px;">Recent Activity</h3>
+                        <div class="tabs-container" style="margin: 0;">
+                            <button class="tab-btn active" onclick="switchTab(this, 'all')">All</button>
+                            <button class="tab-btn" onclick="switchTab(this, 'deposits')">Deposits</button>
+                            <button class="tab-btn" onclick="switchTab(this, 'withdrawals')">Withdrawals</button>
+                        </div>
+                    </div>
+                    <div id="activity-list" style="padding: 20px;">
+                        <div style="text-align: center; padding: 40px; color: #848e9c;">
+                            <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p>Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="sec-users" class="section">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <div style="position: relative; width: 300px; max-width: 100%;">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #848e9c;"></i>
+                        <input type="text" id="search-users" class="search-input" placeholder="Search users..." onkeyup="searchUsers()">
+                    </div>
+                    <button class="btn-primary" onclick="exportUsers()">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                </div>
+                
+                <div style="background: #151a21; border: 1px solid #2b3139; border-radius: 12px; overflow: hidden;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Contact</th>
+                                <th>Balance</th>
+                                <th>KYC</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table">
+                            <!-- Users loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Transactions Section -->
+            <section id="sec-transactions" class="section">
+                <div class="tabs-container" style="margin-bottom: 20px;">
+                    <button class="tab-btn active" onclick="switchTransTab('deposits')">Pending Deposits</button>
+                    <button class="tab-btn" onclick="switchTransTab('withdrawals')">Pending Withdrawals</button>
+                </div>
+                
+                <div id="trans-content">
+                    <!-- Transactions loaded here -->
+                </div>
+            </section>
+
+            <!-- KYC Section -->
+            <section id="sec-kyc" class="section">
+                <h3 style="margin-bottom: 20px; color: #fff;">KYC Verification Requests</h3>
+                <div id="kyc-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px;">
+                    <!-- KYC items -->
+                </div>
+            </section>
+
+            <!-- Website Editor Section -->
+            <section id="sec-website" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h3 style="color: #fff; margin-bottom: 5px;">Visual Website Editor</h3>
+                        <p style="color: #848e9c; font-size: 13px;">Edit your website content in real-time</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-secondary" onclick="loadWebsitePreview()">
+                            <i class="fas fa-redo"></i> Reload
+                        </button>
+                        <button class="btn-primary" onclick="saveWebsiteChanges()">
+                            <i class="fas fa-save"></i> Publish
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="editor-container">
+                    <div class="editor-sidebar">
+                        <h4 style="color: #fff; margin-bottom: 15px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Editor Controls</h4>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px;">Website Title</label>
+                            <input type="text" id="edit-title" class="form-input" placeholder="Trending Store">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px;">Hero Heading</label>
+                            <input type="text" id="edit-hero" class="form-input" placeholder="Main heading...">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px;">Primary Color</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="color" id="edit-color" value="#00c853" style="width: 50px; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
+                                <input type="text" id="edit-color-text" class="form-input" value="#00c853" style="flex: 1;">
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px;">Contact Email</label>
+                            <input type="email" id="edit-email" class="form-input" placeholder="support@example.com">
+                        </div>
+                        
+                        <hr style="border-color: #2b3139; margin: 20px 0;">
+                        
+                        <div style="background: rgba(0,200,83,0.05); border: 1px solid rgba(0,200,83,0.2); border-radius: 8px; padding: 12px;">
+                            <p style="color: #00c853; font-size: 12px; line-height: 1.5; margin: 0;">
+                                <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
+                                Changes are applied in real-time to the preview. Click Publish to save.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="editor-preview">
+                        <iframe id="website-frame" src="about:blank"></iframe>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="sec-settings" class="section">
+                <div style="max-width: 600px;">
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <h3 style="color: #fff; margin-bottom: 20px; font-size: 18px;">Payment Settings</h3>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">UPI ID</label>
+                            <input type="text" id="set-upi" class="form-input" placeholder="admin@upi">
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; color: #848e9c; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">USDT Address (BEP20)</label>
+                            <input type="text" id="set-usdt" class="form-input" placeholder="0x...">
+                        </div>
+                        
+                        <button class="btn-primary" onclick="saveSettings()" style="width: 100%;">
+                            <i class="fas fa-save"></i> Save Payment Settings
+                        </button>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <h3 style="color: #fff; margin-bottom: 20px; font-size: 18px;">System Info</h3>
+                        <div style="color: #848e9c; font-size: 13px; line-height: 2;">
+                            <p><i class="fas fa-check-circle" style="color: #00c853; margin-right: 8px;"></i> Firebase Connected</p>
+                            <p><i class="fas fa-check-circle" style="color: #00c853; margin-right: 8px;"></i> Real-time Sync Active</p>
+                            <p><i class="fas fa-shield-alt" style="color: #00c853; margin-right: 8px;"></i> Password Protected</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="color: #fff;">User Profile Details</h3>
+                <button class="close-btn" onclick="closeModal('userModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="userModalBody" style="padding: 20px;">
+                <!-- Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Firebase Config (Sirf Firestore ke liye)
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        const ADMIN_PASSWORD = "sql@vip";
+        let usersCache = {};
+        let currentTab = 'all';
+        
+        // Toggle Password Visibility
+        function togglePassword() {
+            const input = document.getElementById('admin-password');
+            const icon = document.getElementById('eye-icon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+        
+        // Simple Password Check (No Firebase Auth)
+        function checkPassword() {
+            const input = document.getElementById('admin-password').value;
+            const errorMsg = document.getElementById('error-msg');
+            
+            if (input === ADMIN_PASSWORD) {
+                // Password sahi hai - Panel dikhaye
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('appContainer').style.display = 'flex';
+                errorMsg.style.display = 'none';
+                
+                // Initialize Dashboard
+                initDashboard();
+                showToast('Welcome Admin!');
+            } else {
+                // Password galat
+                errorMsg.style.display = 'block';
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').focus();
+            }
+        }
+        
+        // Logout function (Lock panel)
+        function logout() {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('appContainer').style.display = 'none';
+            document.getElementById('admin-password').value = '';
+            document.getElementById('error-msg').style.display = 'none';
+        }
+        
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+        
+        // Navigation
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('sec-' + section).classList.add('active');
+            
+            // Update nav active state
+            document.querySelectorAll('.nav-item').forEach((item, index) => {
+                item.classList.remove('active');
+                if (section === ['dashboard', 'users', 'transactions', 'kyc', 'website', 'settings'][index]) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Update title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'users': 'All Users',
+                'transactions': 'Transactions',
+                'kyc': 'KYC Requests',
+                'website': 'Website Editor',
+                'settings': 'Settings'
+            };
+            document.getElementById('page-title').textContent = titles[section];
+            
+            // Close sidebar on mobile
+            if (window.innerWidth <= 1024) {
+                toggleSidebar();
+            }
+            
+            // Special init for sections
+            if (section === 'website') {
+                setTimeout(loadWebsitePreview, 100);
+            }
+        }
+        
+        // Initialize
+        function initDashboard() {
+            loadStats();
+            loadActivity();
+            loadUsers();
+            loadTransactions('deposits');
+            loadKYC();
+            loadSettings();
+        }
+        
+        function refreshData() {
+            showToast('Refreshing data...');
+            initDashboard();
+        }
+        
+        // Stats
+        function loadStats() {
+            db.collection('users').onSnapshot(snap => {
+                document.getElementById('stat-users').textContent = snap.size;
+                
+                let total = 0;
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    total += (d.spotBalance || 0) + (d.futuresBalance || 0) + 
+                             (d.marginBalance || 0) + (d.investBalance || 0) + (d.nftBalance || 0);
+                });
+                document.getElementById('stat-balance').textContent = '₹' + total.toLocaleString();
+            });
+            
+            db.collection('payments').where('status', '==', 'pending').onSnapshot(snap => {
+                document.getElementById('stat-deposits').textContent = snap.size;
+            });
+            
+            db.collection('withdrawals').where('status', '==', 'pending').onSnapshot(snap => {
+                document.getElementById('stat-withdrawals').textContent = snap.size;
+            });
+        }
+        
+        // Activity Tabs
+        function switchTab(btn, tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = tab;
+            loadActivity();
+        }
+        
+        function loadActivity() {
+            const container = document.getElementById('activity-list');
+            container.innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i></div>';
+            
+            let query = db.collection('payments').orderBy('timestamp', 'desc').limit(10);
+            
+            if (currentTab === 'deposits') {
+                query = db.collection('payments').where('type', '==', 'deposit').orderBy('timestamp', 'desc').limit(10);
+            } else if (currentTab === 'withdrawals') {
+                query = db.collection('withdrawals').orderBy('timestamp', 'desc').limit(10);
+            }
+            
+            query.onSnapshot(snap => {
+                let html = '';
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const isDeposit = d.type === 'deposit' || d.amount > 0;
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #0b0e11; border-radius: 8px; margin-bottom: 10px; border: 1px solid #2b3139;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: ${isDeposit ? 'rgba(0,200,83,0.1)' : 'rgba(255,61,0,0.1)'}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-${isDeposit ? 'arrow-down' : 'arrow-up'}" style="color: ${isDeposit ? '#00c853' : '#ff3d00'};"></i>
+                                </div>
+                                <div>
+                                    <p style="color: #fff; font-weight: 500;">${d.userName || 'Unknown'}</p>
+                                    <p style="color: #848e9c; font-size: 12px;">${d.txid || 'No ID'}</p>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <p style="color: ${isDeposit ? '#00c853' : '#ff3d00'}; font-weight: 600;">${isDeposit ? '+' : '-'}₹${d.amount}</p>
+                                <span class="badge badge-warning" style="font-size: 10px;">Pending</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p style="text-align: center; color: #848e9c; padding: 20px;">No activity</p>';
+            });
+        }
+        
+        // Users
+        function loadUsers() {
+            db.collection('users').onSnapshot(snap => {
+                usersCache = {};
+                const tbody = document.getElementById('users-table');
+                let html = '';
+                
+                snap.forEach(doc => {
+                    const u = { id: doc.id, ...doc.data() };
+                    usersCache[doc.id] = u;
+                    
+                    const total = (u.spotBalance || 0) + (u.futuresBalance || 0) + 
+                                  (u.marginBalance || 0) + (u.investBalance || 0) + (u.nftBalance || 0);
+                    
+                    html += `
+                        <tr onclick="showUserDetail('${doc.id}')" style="cursor: pointer;">
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="${u.avatar || 'https://via.placeholder.com/40'}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+                                    <div>
+                                        <p style="color: #fff; font-weight: 500;">${u.name || 'N/A'}</p>
+                                        <p style="color: #848e9c; font-size: 12px;">${u.email || ''}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color: #848e9c;">${u.phone || 'N/A'}</td>
+                            <td style="color: #00c853; font-weight: 600;">₹${total.toLocaleString()}</td>
+                            <td>
+                                <span class="badge ${u.kycStatus === 'verified' ? 'badge-success' : u.kycStatus === 'pending' ? 'badge-warning' : ''}">
+                                    ${u.kycStatus || 'Unverified'}
+                                </span>
+                            </td>
+                            <td>
+                                <button onclick="event.stopPropagation(); editBalance('${doc.id}')" class="btn-primary" style="padding: 6px 12px; font-size: 12px;">
+                                    <i class="fas fa-wallet"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html || '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #848e9c;">No users found</td></tr>';
+            });
+        }
+        
+        function searchUsers() {
+            const term = document.getElementById('search-users').value.toLowerCase();
+            document.querySelectorAll('#users-table tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+            });
+        }
+        
+        // Transactions
+        function switchTransTab(type) {
+            document.querySelectorAll('#sec-transactions .tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadTransactions(type);
+        }
+        
+        function loadTransactions(type) {
+            const container = document.getElementById('trans-content');
+            
+            if (type === 'deposits') {
+                db.collection('payments').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snap => {
+                    let html = '';
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const u = usersCache[d.uid] || {};
+                        html += `
+                            <div class="transaction-item">
+                                <img src="${u.avatar || 'https://via.placeholder.com/50'}" class="user-avatar">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                                        <div>
+                                            <h4 style="color: #fff; margin-bottom: 3px;">${u.name || d.userName || 'Unknown'}</h4>
+                                            <p style="color: #848e9c; font-size: 13px;">${u.phone || 'No phone'} • ${u.email || 'No email'}</p>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <h3 style="color: #00c853; font-size: 24px; margin-bottom: 5px;">₹${d.amount}</h3>
+                                            <span class="badge badge-warning">Pending</span>
+                                        </div>
+                                    </div>
+                                    <p style="color: #848e9c; font-size: 12px; margin-bottom: 10px;">UTR: ${d.txid} • ${new Date(d.timestamp?.toDate()).toLocaleString()}</p>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button onclick="approveDeposit('${doc.id}', '${d.uid}', ${d.amount})" class="btn-primary" style="flex: 1;">
+                                            <i class="fas fa-check"></i> Approve
+                                        </button>
+                                        <button onclick="rejectDeposit('${doc.id}')" class="btn-danger">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html || '<div style="text-align: center; padding: 60px; color: #848e9c;"><i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i><p>No pending deposits</p></div>';
+                });
+            } else {
+                db.collection('withdrawals').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snap => {
+                    let html = '';
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const u = usersCache[d.uid] || {};
+                        html += `
+                            <div class="transaction-item" style="border-left: 3px solid #ff3d00;">
+                                <img src="${u.avatar || 'https://via.placeholder.com/50'}" class="user-avatar" style="border-color: #ff3d00;">
+                                <div style="flex: 1;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                                        <div>
+                                            <h4 style="color: #fff; margin-bottom: 3px;">${u.name || d.userName || 'Unknown'}</h4>
+                                            <p style="color: #848e9c; font-size: 13px;">${u.phone || 'No phone'}</p>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <h3 style="color: #ff3d00; font-size: 24px; margin-bottom: 5px;">₹${d.amount}</h3>
+                                            <span class="badge badge-warning">Pending</span>
+                                        </div>
+                                    </div>
+                                    <p style="color: #848e9c; font-size: 12px; margin-bottom: 10px;">UPI: ${d.upi} • ${d.account} Account</p>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button onclick="approveWithdrawal('${doc.id}')" class="btn-primary" style="flex: 1; background: #00c853;">
+                                            <i class="fas fa-check"></i> Mark as Paid
+                                        </button>
+                                        <button onclick="rejectWithdrawal('${doc.id}')" class="btn-danger">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html || '<div style="text-align: center; padding: 60px; color: #848e9c;"><i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i><p>No pending withdrawals</p></div>';
+                });
+            }
+        }
+        
+        // Actions
+        function approveDeposit(id, uid, amount) {
+            db.collection('payments').doc(id).update({ status: 'approved' }).then(() => {
+                db.collection('users').doc(uid).update({
+                    spotBalance: firebase.firestore.FieldValue.increment(amount)
+                });
+                showToast('Deposit approved');
+            });
+        }
+        
+        function rejectDeposit(id) {
+            db.collection('payments').doc(id).update({ status: 'rejected' })
+                .then(() => showToast('Deposit rejected'));
+        }
+        
+        function approveWithdrawal(id) {
+            db.collection('withdrawals').doc(id).update({ status: 'approved' })
+                .then(() => showToast('Withdrawal approved'));
+        }
+        
+        function rejectWithdrawal(id) {
+            db.collection('withdrawals').doc(id).update({ status: 'rejected' })
+                .then(() => showToast('Withdrawal rejected'));
+        }
+        
+        // KYC
+        function loadKYC() {
+            db.collection('kyc').where('status', '==', 'pending').onSnapshot(snap => {
+                const container = document.getElementById('kyc-list');
+                let html = '';
+                
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const u = usersCache[d.uid] || {};
+                    
+                    html += `
+                        <div style="background: #151a21; border: 1px solid #2b3139; border-radius: 12px; overflow: hidden;">
+                            <div style="padding: 15px; border-bottom: 1px solid #2b3139; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="${u.avatar || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                                    <div>
+                                        <h4 style="color: #fff;">${u.name || d.userName}</h4>
+                                        <p style="color: #848e9c; font-size: 12px;">${d.documentType?.toUpperCase()}</p>
+                                    </div>
+                                </div>
+                                <span class="badge badge-warning">Pending</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px;">
+                                <div>
+                                    <p style="color: #848e9c; font-size: 11px; margin-bottom: 5px;">Photo</p>
+                                    <img src="${d.photoUrl}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;" onclick="window.open('${d.photoUrl}')">
+                                </div>
+                                <div>
+                                    <p style="color: #848e9c; font-size: 11px; margin-bottom: 5px;">Document</p>
+                                    <img src="${d.documentUrl}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;" onclick="window.open('${d.documentUrl}')">
+                                </div>
+                            </div>
+                            <div style="padding: 15px; display: flex; gap: 10px; border-top: 1px solid #2b3139;">
+                                <button onclick="verifyKYC('${doc.id}', '${d.uid}', true)" class="btn-primary" style="flex: 1;">
+                                    <i class="fas fa-check"></i> Verify
+                                </button>
+                                <button onclick="verifyKYC('${doc.id}', '${d.uid}', false)" class="btn-danger" style="flex: 1;">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<div style="text-align: center; padding: 60px; color: #848e9c; grid-column: 1/-1;"><i class="fas fa-id-card" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i><p>No pending KYC requests</p></div>';
+            });
+        }
+        
+        function verifyKYC(id, uid, approved) {
+            const status = approved ? 'verified' : 'rejected';
+            db.collection('kyc').doc(id).update({ status }).then(() => {
+                db.collection('users').doc(uid).update({ kycStatus: status });
+                showToast(approved ? 'KYC Verified' : 'KYC Rejected');
+            });
+        }
+        
+        // User Details
+        function showUserDetail(uid) {
+            const u = usersCache[uid];
+            if (!u) return;
+            
+            const total = (u.spotBalance || 0) + (u.futuresBalance || 0) + 
+                          (u.marginBalance || 0) + (u.investBalance || 0) + (u.nftBalance || 0);
+            
+            document.getElementById('userModalBody').innerHTML = `
+                <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <img src="${u.avatar || 'https://via.placeholder.com/100'}" style="width: 100px; height: 100px; border-radius: 50%; border: 3px solid #00c853;">
+                    <div>
+                        <h2 style="color: #fff; margin-bottom: 5px;">${u.name || 'N/A'}</h2>
+                        <p style="color: #848e9c; margin-bottom: 3px;">${u.email || 'No email'}</p>
+                        <p style="color: #848e9c; margin-bottom: 10px;">${u.phone || 'No phone'}</p>
+                        <span class="badge ${u.kycStatus === 'verified' ? 'badge-success' : 'badge-warning'}">${u.kycStatus || 'Unverified'}</span>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #0b0e11; padding: 15px; border-radius: 8px; border: 1px solid #2b3139;">
+                        <p style="color: #848e9c; font-size: 12px; margin-bottom: 5px;">Spot</p>
+                        <p style="color: #fff; font-size: 18px; font-weight: 600;">₹${(u.spotBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div style="background: #0b0e11; padding: 15px; border-radius: 8px; border: 1px solid #2b3139;">
+                        <p style="color: #848e9c; font-size: 12px; margin-bottom: 5px;">Futures</p>
+                        <p style="color: #fff; font-size: 18px; font-weight: 600;">₹${(u.futuresBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div style="background: #0b0e11; padding: 15px; border-radius: 8px; border: 1px solid #2b3139;">
+                        <p style="color: #848e9c; font-size: 12px; margin-bottom: 5px;">Invest</p>
+                        <p style="color: #fff; font-size: 18px; font-weight: 600;">₹${(u.investBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div style="background: #0b0e11; padding: 15px; border-radius: 8px; border: 1px solid #2b3139;">
+                        <p style="color: #848e9c; font-size: 12px; margin-bottom: 5px;">Total</p>
+                        <p style="color: #00c853; font-size: 18px; font-weight: 600;">₹${total.toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="editBalance('${uid}')" class="btn-primary" style="flex: 1; min-width: 120px;">
+                        <i class="fas fa-plus"></i> Add Balance
+                    </button>
+                    <button onclick="closeModal('userModal')" class="btn-secondary" style="flex: 1; min-width: 120px;">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('userModal').classList.add('active');
+        }
+        
+        function editBalance(uid) {
+            const amount = prompt('Enter amount to add (negative to deduct):');
+            if (!amount || isNaN(amount)) return;
+            
+            db.collection('users').doc(uid).update({
+                spotBalance: firebase.firestore.FieldValue.increment(parseInt(amount))
+            }).then(() => {
+                showToast('Balance updated');
+                closeModal('userModal');
+            });
+        }
+        
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+        
+        // Website Editor
+        function loadWebsitePreview() {
+            const frame = document.getElementById('website-frame');
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body { 
+                            font-family: 'Inter', sans-serif; 
+                            margin: 0; 
+                            padding: 0; 
+                            background: #0b0e11;
+                            color: white;
+                            min-height: 100vh;
+                        }
+                        .navbar {
+                            background: #151a21;
+                            padding: 15px 30px;
+                            border-bottom: 1px solid #2b3139;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        }
+                        .logo { 
+                            color: #00c853; 
+                            font-size: 24px; 
+                            font-weight: bold; 
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                        }
+                        .hero {
+                            text-align: center;
+                            padding: 100px 20px;
+                            background: linear-gradient(135deg, #0b0e11 0%, #151a21 100%);
+                        }
+                        h1 { 
+                            color: #00c853; 
+                            font-size: 48px; 
+                            margin-bottom: 20px;
+                            font-weight: 700;
+                        }
+                        .subtitle {
+                            color: #848e9c;
+                            font-size: 20px;
+                            margin-bottom: 40px;
+                        }
+                        .btn { 
+                            background: #00c853; 
+                            color: black; 
+                            padding: 15px 40px; 
+                            border-radius: 8px; 
+                            text-decoration: none;
+                            display: inline-block;
+                            font-weight: bold;
+                            font-size: 16px;
+                        }
+                        .features {
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                            gap: 30px;
+                            padding: 60px 30px;
+                            max-width: 1200px;
+                            margin: 0 auto;
+                        }
+                        .feature-card {
+                            background: #151a21;
+                            border: 1px solid #2b3139;
+                            border-radius: 16px;
+                            padding: 30px;
+                            text-align: center;
+                        }
+                        .feature-icon {
+                            font-size: 40px;
+                            color: #00c853;
+                            margin-bottom: 20px;
+                        }
+                        .feature-title {
+                            color: #fff;
+                            font-size: 20px;
+                            margin-bottom: 10px;
+                        }
+                        .feature-desc {
+                            color: #848e9c;
+                            font-size: 14px;
+                        }
+                    </style>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+                </head>
+                <body>
+                    <nav class="navbar">
+                        <div class="logo">
+                            <i class="fas fa-store"></i>
+                            <span id="site-title">Trending Store</span>
+                        </div>
+                        <div>
+                            <span style="color: #848e9c; margin-right: 20px;">Home</span>
+                            <span style="color: #848e9c; margin-right: 20px;">Trade</span>
+                            <span style="color: #848e9c;">Wallet</span>
+                        </div>
+                    </nav>
+                    
+                    <div class="hero">
+                        <h1 id="hero-title">Trade Crypto Smarter</h1>
+                        <p class="subtitle" id="hero-subtitle">Professional platform for spot, futures and NFT trading</p>
+                        <a href="#" class="btn">Get Started</a>
+                    </div>
+                    
+                    <div class="features">
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                            <div class="feature-title">Spot Trading</div>
+                            <div class="feature-desc">Buy and sell crypto instantly with low fees</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fas fa-rocket"></i></div>
+                            <div class="feature-title">Futures</div>
+                            <div class="feature-desc">Trade with up to 100x leverage</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon"><i class="fas fa-image"></i></div>
+                            <div class="feature-title">NFT Marketplace</div>
+                            <div class="feature-desc">Buy and sell digital collectibles</div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            frame.srcdoc = htmlContent;
+            
+            // Setup live editing
+            setTimeout(() => {
+                const doc = frame.contentDocument;
+                
+                document.getElementById('edit-title').addEventListener('input', (e) => {
+                    const el = doc.getElementById('site-title');
+                    if (el) el.textContent = e.target.value || 'Trending Store';
+                });
+                
+                document.getElementById('edit-hero').addEventListener('input', (e) => {
+                    const el = doc.getElementById('hero-title');
+                    if (el) el.textContent = e.target.value || 'Trade Crypto Smarter';
+                });
+                
+                document.getElementById('edit-color').addEventListener('input', (e) => {
+                    const color = e.target.value;
+                    document.getElementById('edit-color-text').value = color;
+                    
+                    const title = doc.getElementById('site-title');
+                    const heroTitle = doc.getElementById('hero-title');
+                    const btn = doc.querySelector('.btn');
+                    const icons = doc.querySelectorAll('.feature-icon');
+                    
+                    if (title) title.style.color = color;
+                    if (heroTitle) heroTitle.style.color = color;
+                    if (btn) btn.style.background = color;
+                    icons.forEach(icon => icon.style.color = color);
+                });
+            }, 500);
+        }
+        
+        function saveWebsiteChanges() {
+            const data = {
+                title: document.getElementById('edit-title').value,
+                hero: document.getElementById('edit-hero').value,
+                color: document.getElementById('edit-color').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            db.collection('website').doc('config').set(data)
+                .then(() => showToast('Website published successfully!'));
+        }
+        
+        // Settings
+        function loadSettings() {
+            db.collection('admin').doc('config').onSnapshot(doc => {
+                if (doc.exists) {
+                    const d = doc.data();
+                    document.getElementById('set-upi').value = d.upi || '';
+                    document.getElementById('set-usdt').value = d.usdtAddress || '';
+                }
+            });
+        }
+        
+        function saveSettings() {
+            db.collection('admin').doc('config').set({
+                upi: document.getElementById('set-upi').value,
+                usdtAddress: document.getElementById('set-usdt').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(() => showToast('Settings saved'));
+        }
+        
+        function exportUsers() {
+            showToast('Exporting to CSV...');
+            // Implementation would go here
+        }
+        
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+      </html>
