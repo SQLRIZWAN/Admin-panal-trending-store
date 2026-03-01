@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Store - Admin Panel</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00c853',
+                        secondary: '#ffd600',
+                        danger: '#ff3d00',
+                        bgDeep: '#0b0e11',
+                        surface: '#151a21',
+                        surfaceLight: '#1e2329',
+                        border: '#2b3139',
+                        textGray: '#848e9c',
+                        admin: '#6366f1'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+        
+        .glass { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; }
+        .admin-card { background: linear-gradient(145deg, #151a21, #1e2329); border: 1px solid #2b3139; border-radius: 16px; transition: all 0.3s; }
+        .admin-card:hover { transform: translateY(-2px); border-color: #6366f1; box-shadow: 0 10px 30px rgba(99, 102, 241, 0.1); }
+        
+        .sidebar { position: fixed; left: 0; top: 0; width: 280px; height: 100vh; background: #151a21; border-right: 1px solid #2b3139; z-index: 1000; overflow-y: auto; transition: all 0.3s; }
+        .main-content { margin-left: 280px; min-height: 100vh; padding: 20px; }
+        
+        .nav-item { padding: 12px 20px; margin: 4px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; color: #848e9c; }
+        .nav-item:hover { background: #1e2329; color: #fff; }
+        .nav-item.active { background: rgba(99, 102, 241, 0.2); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); }
+        
+        .editable { border: 2px dashed transparent; transition: all 0.2s; position: relative; }
+        .editable:hover { border-color: #6366f1; background: rgba(99, 102, 241, 0.05); cursor: text; }
+        .editable:focus { outline: none; border-color: #00c853; background: rgba(0, 200, 83, 0.05); }
+        
+        .edit-toolbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #151a21; border: 1px solid #2b3139; padding: 12px 24px; border-radius: 50px; display: none; gap: 12px; z-index: 9999; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .edit-toolbar.active { display: flex; }
+        .tool-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #2b3139; background: #0b0e11; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .tool-btn:hover { background: #6366f1; border-color: #6366f1; }
+        
+        .user-row { transition: all 0.2s; cursor: pointer; }
+        .user-row:hover { background: rgba(99, 102, 241, 0.1); }
+        
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(5px); }
+        .modal.active { display: flex; }
+        .modal-content { background: #151a21; border: 1px solid #2b3139; border-radius: 20px; width: 100%; max-width: 900px; max-height: 90vh; overflow-y: auto; }
+        
+        .stat-card { background: linear-gradient(135deg, #151a21 0%, #1e2329 100%); border: 1px solid #2b3139; border-radius: 16px; padding: 24px; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #6366f1; }
+        
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: rgba(0, 200, 83, 0.2); color: #00c853; }
+        .badge-warning { background: rgba(255, 214, 0, 0.2); color: #ffd600; }
+        .badge-danger { background: rgba(255, 61, 0, 0.2); color: #ff3d00; }
+        .badge-info { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+        
+        .search-input { background: #0b0e11; border: 1px solid #2b3139; color: #fff; padding: 12px 16px 12px 44px; border-radius: 12px; width: 100%; transition: all 0.2s; }
+        .search-input:focus { outline: none; border-color: #6366f1; }
+        
+        .btn-primary { background: #6366f1; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+        .btn-danger { background: #ff3d00; color: white; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-success { background: #00c853; color: black; padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; }
+        
+        .switch { position: relative; width: 50px; height: 26px; background: #2b3139; border-radius: 13px; cursor: pointer; transition: all 0.3s; }
+        .switch.active { background: #00c853; }
+        .switch::after { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: all 0.3s; }
+        .switch.active::after { left: 26px; }
+        
+        @media (max-width: 1024px) { 
+            .sidebar { transform: translateX(-100%); } 
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+        
+        .loading-skeleton { background: linear-gradient(90deg, #1e2329 25%, #2b3139 50%, #1e2329 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .tab-btn { padding: 10px 20px; border-bottom: 2px solid transparent; color: #848e9c; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { color: #6366f1; border-bottom-color: #6366f1; }
+        
+        .color-picker { width: 40px; height: 40px; border: none; border-radius: 8px; cursor: pointer; background: none; }
+        
+        .preview-frame { width: 100%; height: 600px; border: 1px solid #2b3139; border-radius: 12px; background: #0b0e11; }
+    </style>
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="fixed inset-0 bg-bgDeep z-[10001] flex items-center justify-center">
+        <div class="glass rounded-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-admin/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shield-alt text-3xl text-admin"></i>
+                </div>
+                <h1 class="text-2xl font-bold">Admin Panel</h1>
+                <p class="text-textGray text-sm mt-2">Trending Store Management</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Admin Email</label>
+                    <input type="email" id="admin-email" class="search-input" style="padding-left: 16px;" placeholder="admin@example.com">
+                </div>
+                <div>
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Password</label>
+                    <input type="password" id="admin-password" class="search-input" style="padding-left: 16px;" placeholder="••••••••">
+                </div>
+                <button onclick="loginAdmin()" class="btn-primary w-full py-3 text-lg mt-6">
+                    <i class="fas fa-lock mr-2"></i>Secure Login
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="admin-app" class="hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="p-6 border-b border-border">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-admin rounded-lg flex items-center justify-center">
+                        <i class="fas fa-crown text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg">Admin Panel</h2>
+                        <p class="text-textGray text-xs">Super Admin</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="py-4">
+                <div class="nav-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-home w-5"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" onclick="showSection('users')">
+                    <i class="fas fa-users w-5"></i>
+                    <span>All Users</span>
+                    <span id="user-count-badge" class="ml-auto bg-admin text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+                </div>
+                <div class="nav-item" onclick="showSection('transactions')">
+                    <i class="fas fa-exchange-alt w-5"></i>
+                    <span>Transactions</span>
+                </div>
+                <div class="nav-item" onclick="showSection('kyc')">
+                    <i class="fas fa-id-card w-5"></i>
+                    <span>KYC Requests</span>
+                    <span id="kyc-count-badge" class="ml-auto bg-warning text-black text-xs px-2 py-1 rounded-full hidden">0</span>
+                </div>
+                <div class="nav-item" onclick="showSection('nft')">
+                    <i class="fas fa-image w-5"></i>
+                    <span>NFT Manager</span>
+                </div>
+                <div class="nav-item" onclick="showSection('investment')">
+                    <i class="fas fa-chart-pie w-5"></i>
+                    <span>Investment Plans</span>
+                </div>
+                <div class="nav-item" onclick="showSection('editor')">
+                    <i class="fas fa-edit w-5"></i>
+                    <span>Website Editor</span>
+                </div>
+                <div class="nav-item" onclick="showSection('settings')">
+                    <i class="fas fa-cog w-5"></i>
+                    <span>Settings</span>
+                </div>
+            </nav>
+            
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+                <button onclick="logoutAdmin()" class="w-full py-3 rounded-lg border border-danger/30 text-danger hover:bg-danger/10 transition-colors">
+                    <i class="fas fa-power-off mr-2"></i>Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="glass rounded-xl p-4 mb-6 flex items-center justify-between sticky top-0 z-50">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="lg:hidden w-10 h-10 rounded-lg bg-surfaceLight flex items-center justify-center">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 id="page-title" class="text-xl font-bold">Dashboard</h2>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleEditMode()" id="edit-mode-btn" class="hidden px-4 py-2 rounded-lg bg-admin/20 text-admin border border-admin/30">
+                        <i class="fas fa-magic mr-2"></i>Edit Mode: OFF
+                    </button>
+                    <div class="w-10 h-10 rounded-full bg-admin flex items-center justify-center">
+                        <i class="fas fa-user-shield text-white"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-textGray text-sm mb-1">Total Users</p>
+                                <h3 id="stat-total-users" class="text-2xl font-bold">0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-admin/20 flex items-center justify-center">
+                                <i class="fas fa-users text-admin"></i>
+                            </div>
+                        </div>
+                        <p class="text-primary text-xs mt-4"><i class="fas fa-arrow-up mr-1"></i>Active Now</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-textGray text-sm mb-1">Total Balance</p>
+                                <h3 id="stat-total-balance" class="text-2xl font-bold">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                                <i class="fas fa-wallet text-primary"></i>
+                            </div>
+                        </div>
+                        <p class="text-textGray text-xs mt-4">All Users Combined</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-textGray text-sm mb-1">Pending KYC</p>
+                                <h3 id="stat-pending-kyc" class="text-2xl font-bold">0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-warning/20 flex items-center justify-center">
+                                <i class="fas fa-clock text-warning"></i>
+                            </div>
+                        </div>
+                        <p class="text-warning text-xs mt-4">Verification Required</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-textGray text-sm mb-1">Pending Withdrawals</p>
+                                <h3 id="stat-pending-withdrawals" class="text-2xl font-bold">0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-lg bg-danger/20 flex items-center justify-center">
+                                <i class="fas fa-money-bill-wave text-danger"></i>
+                            </div>
+                        </div>
+                        <p class="text-danger text-xs mt-4">Action Required</p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="admin-card p-6">
+                    <h3 class="font-bold text-lg mb-4">Recent Activity</h3>
+                    <div id="recent-activity" class="space-y-3">
+                        <p class="text-textGray text-center py-8">Loading...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="section-users" class="hidden space-y-6">
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="relative w-full md:w-96">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-textGray"></i>
+                        <input type="text" id="user-search" class="search-input" placeholder="Search by name, phone, email..." oninput="searchUsers()">
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="exportUsers()" class="px-4 py-2 rounded-lg border border-border hover:bg-surfaceLight transition-colors">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                        <button onclick="openAddUserModal()" class="btn-success">
+                            <i class="fas fa-plus mr-2"></i>Add User
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-card overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-surfaceLight border-b border-border">
+                                <tr>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">User</th>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">Contact</th>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">Balance</th>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">KYC Status</th>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">Joined</th>
+                                    <th class="text-left p-4 text-textGray font-semibold text-sm">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body" class="divide-y divide-border">
+                                <!-- Users loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transactions Section -->
+            <section id="section-transactions" class="hidden space-y-6">
+                <div class="flex gap-4 border-b border-border mb-6">
+                    <button class="tab-btn active" onclick="showTransactionTab('deposits')">Deposits</button>
+                    <button class="tab-btn" onclick="showTransactionTab('withdrawals')">Withdrawals</button>
+                    <button class="tab-btn" onclick="showTransactionTab('transfers')">Transfers</button>
+                </div>
+
+                <div id="deposits-panel" class="space-y-4">
+                    <div class="admin-card p-6">
+                        <h3 class="font-bold mb-4">Pending Deposits</h3>
+                        <div id="pending-deposits-list" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <div id="withdrawals-panel" class="hidden space-y-4">
+                    <div class="admin-card p-6">
+                        <h3 class="font-bold mb-4">Pending Withdrawals</h3>
+                        <div id="pending-withdrawals-list" class="space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KYC Section -->
+            <section id="section-kyc" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="kyc-requests-container">
+                    <!-- KYC cards loaded here -->
+                </div>
+            </section>
+
+            <!-- NFT Manager -->
+            <section id="section-nft" class="hidden space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold">Manage NFTs</h3>
+                    <button onclick="openAddNFTModal()" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Add New NFT
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="admin-nft-list">
+                    <!-- NFTs loaded here -->
+                </div>
+            </section>
+
+            <!-- Investment Plans -->
+            <section id="section-investment" class="hidden space-y-6">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold">Investment Plans</h3>
+                    <button onclick="openAddPlanModal()" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Create Plan
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="admin-plans-list">
+                    <!-- Plans loaded here -->
+                </div>
+            </section>
+
+            <!-- Website Editor -->
+            <section id="section-editor" class="hidden space-y-6">
+                <div class="admin-card p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold mb-2">Live Website Editor</h3>
+                            <p class="text-textGray text-sm">Edit text, colors, and content directly. Changes save automatically.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="previewWebsite()" class="px-4 py-2 rounded-lg border border-border hover:bg-surfaceLight">
+                                <i class="fas fa-eye mr-2"></i>Preview
+                            </button>
+                            <button onclick="saveWebsiteChanges()" class="btn-success">
+                                <i class="fas fa-save mr-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-border rounded-xl p-4 bg-bgDeep">
+                        <div id="editor-preview" class="space-y-4 max-h-[600px] overflow-y-auto p-4">
+                            <div class="editable p-4 rounded-lg border border-dashed border-border" data-field="site-title">
+                                <h1 class="text-2xl font-bold text-primary">Trending Store</h1>
+                            </div>
+                            <div class="editable p-4 rounded-lg border border-dashed border-border" data-field="hero-text">
+                                <p class="text-textGray">Professional cryptocurrency trading platform</p>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="editable p-4 rounded-lg border border-dashed border-border bg-surface" data-field="feature-1">
+                                    <i class="fas fa-chart-line text-2xl text-primary mb-2"></i>
+                                    <h4 class="font-bold">Spot Trading</h4>
+                                </div>
+                                <div class="editable p-4 rounded-lg border border-dashed border-border bg-surface" data-field="feature-2">
+                                    <i class="fas fa-rocket text-2xl text-secondary mb-2"></i>
+                                    <h4 class="font-bold">Futures</h4>
+                                </div>
+                                <div class="editable p-4 rounded-lg border border-dashed border-border bg-surface" data-field="feature-3">
+                                    <i class="fas fa-image text-2xl text-purple-500 mb-2"></i>
+                                    <h4 class="font-bold">NFT</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings -->
+            <section id="section-settings" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="admin-card p-6">
+                        <h3 class="font-bold text-lg mb-4">Payment Settings</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">UPI ID</label>
+                                <input type="text" id="setting-upi" class="search-input" style="padding-left: 16px;" placeholder="admin@upi">
+                            </div>
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">USDT Address (BEP20)</label>
+                                <input type="text" id="setting-usdt" class="search-input" style="padding-left: 16px;" placeholder="0x...">
+                            </div>
+                            <button onclick="saveSettings()" class="btn-primary w-full">Save Payment Settings</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-card p-6">
+                        <h3 class="font-bold text-lg mb-4">Website Config</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">Min Deposit (₹)</label>
+                                <input type="number" id="setting-min-deposit" class="search-input" style="padding-left: 16px;" value="500">
+                            </div>
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">Min Withdrawal (₹)</label>
+                                <input type="number" id="setting-min-withdraw" class="search-input" style="padding-left: 16px;" value="500">
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-surface rounded-lg">
+                                <span>Maintenance Mode</span>
+                                <div class="switch" onclick="this.classList.toggle('active')"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="p-6 border-b border-border flex items-center justify-between">
+                <h3 class="text-xl font-bold">User Details</h3>
+                <button onclick="closeUserModal()" class="w-8 h-8 rounded-lg bg-surfaceLight flex items-center justify-center hover:bg-danger/20 text-danger">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-6" id="user-detail-content">
+                <!-- User details loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Toolbar -->
+    <div id="edit-toolbar" class="edit-toolbar">
+        <button class="tool-btn" onclick="changeColor()" title="Color"><i class="fas fa-palette"></i></button>
+        <button class="tool-btn" onclick="changeSize('increase')" title="Increase Size"><i class="fas fa-plus"></i></button>
+        <button class="tool-btn" onclick="changeSize('decrease')" title="Decrease Size"><i class="fas fa-minus"></i></button>
+        <button class="tool-btn" onclick="toggleBold()" title="Bold"><i class="fas fa-bold"></i></button>
+        <div style="width: 1px; height: 24px; background: #2b3139; margin: 0 4px;"></div>
+        <button class="tool-btn text-danger" onclick="deleteElement()" title="Delete"><i class="fas fa-trash"></i></button>
+        <button class="tool-btn text-success" onclick="saveEdit()" title="Save"><i class="fas fa-check"></i></button>
+    </div>
+
+    <script>
+        // Firebase Config - Same as main site
+        const firebaseConfig = {
+            apiKey: "AIzaSyClHCeyqGiWUlin0YyxgTeNthmSXRb0uSQ",
+            authDomain: "trending-store-1234.firebaseapp.com",
+            databaseURL: "https://trending-store-1234-default-rtdb.firebaseio.com",
+            projectId: "trending-store-1234",
+            storageBucket: "trending-store-1234.firebasestorage.app",
+            messagingSenderId: "872833621332",
+            appId: "1:872833621332:web:68c505a2f2ff9e5bc83cc1",
+            measurementId: "G-PQHRTS893M"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        let currentAdmin = null;
+        let selectedElement = null;
+        let allUsers = [];
+        
+        // Check if admin is logged in
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Verify if user is admin (you should set admin UIDs in your database)
+                db.collection('admins').doc(user.uid).get().then(doc => {
+                    if (doc.exists) {
+                        currentAdmin = user;
+                        document.getElementById('login-screen').classList.add('hidden');
+                        document.getElementById('admin-app').classList.remove('hidden');
+                        initDashboard();
+                    } else {
+                        auth.signOut();
+                        alert('Access Denied: Not an admin');
+                    }
+                }).catch(() => {
+                    // For demo purposes, allow login
+                    currentAdmin = user;
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('admin-app').classList.remove('hidden');
+                    initDashboard();
+                });
+            }
+        });
+        
+        function loginAdmin() {
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(err => alert('Login Failed: ' + err.message));
+        }
+        
+        function logoutAdmin() {
+            auth.signOut();
+            location.reload();
+        }
+        
+        function initDashboard() {
+            loadStats();
+            loadRecentActivity();
+            loadUsers();
+            loadKYCRequests();
+            loadTransactions();
+            loadNFTs();
+            loadSettings();
+            
+            // Setup edit mode
+            setupEditableElements();
+        }
+        
+        // Navigation
+        function showSection(section) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(`section-${section}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+            
+            document.getElementById('page-title').textContent = 
+                section.charAt(0).toUpperCase() + section.slice(1);
+            
+            // Show edit mode button only in editor section
+            if (section === 'editor') {
+                document.getElementById('edit-mode-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('edit-mode-btn').classList.add('hidden');
+                disableEditMode();
+            }
+        }
+        
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+        
+        // Dashboard Stats
+        function loadStats() {
+            // Total Users
+            db.collection('users').onSnapshot(snapshot => {
+                document.getElementById('stat-total-users').textContent = snapshot.size;
+                document.getElementById('user-count-badge').textContent = snapshot.size;
+                document.getElementById('user-count-badge').classList.remove('hidden');
+                
+                let totalBalance = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    totalBalance += (data.spotBalance || 0) + (data.futuresBalance || 0) + 
+                                   (data.marginBalance || 0) + (data.investBalance || 0) + (data.nftBalance || 0);
+                });
+                document.getElementById('stat-total-balance').textContent = '₹' + totalBalance.toLocaleString();
+            });
+            
+            // Pending KYC
+            db.collection('kyc').where('status', '==', 'pending').onSnapshot(snapshot => {
+                document.getElementById('stat-pending-kyc').textContent = snapshot.size;
+                document.getElementById('kyc-count-badge').textContent = snapshot.size;
+                document.getElementById('kyc-count-badge').classList.toggle('hidden', snapshot.size === 0);
+            });
+            
+            // Pending Withdrawals
+            db.collection('withdrawals').where('status', '==', 'pending').onSnapshot(snapshot => {
+                document.getElementById('stat-pending-withdrawals').textContent = snapshot.size;
+            });
+        }
+        
+        function loadRecentActivity() {
+            const container = document.getElementById('recent-activity');
+            
+            db.collection('payments').orderBy('timestamp', 'desc').limit(5).onSnapshot(snapshot => {
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-surface rounded-lg border border-border">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <i class="fas fa-arrow-down text-primary"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-sm">Deposit Request</p>
+                                    <p class="text-textGray text-xs">${data.userName || 'Unknown'}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-primary">₹${data.amount}</p>
+                                <span class="badge badge-warning text-xs">Pending</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p class="text-textGray text-center py-4">No recent activity</p>';
+            });
+        }
+        
+        // User Management
+        function loadUsers() {
+            db.collection('users').onSnapshot(snapshot => {
+                allUsers = [];
+                const tbody = document.getElementById('users-table-body');
+                let html = '';
+                
+                snapshot.forEach(doc => {
+                    const user = { id: doc.id, ...doc.data() };
+                    allUsers.push(user);
+                    
+                    const totalBal = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                                    (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+                    
+                    html += `
+                        <tr class="user-row border-b border-border hover:bg-surfaceLight transition-colors" onclick="showUserDetail('${doc.id}')">
+                            <td class="p-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="${user.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover">
+                                    <div>
+                                        <p class="font-semibold">${user.name || 'N/A'}</p>
+                                        <p class="text-textGray text-xs">${user.email || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4 text-textGray text-sm">${user.phone || 'N/A'}</td>
+                            <td class="p-4 font-bold text-primary">₹${totalBal.toLocaleString()}</td>
+                            <td class="p-4">
+                                <span class="badge ${user.kycStatus === 'verified' ? 'badge-success' : user.kycStatus === 'pending' ? 'badge-warning' : 'badge-danger'}">
+                                    ${user.kycStatus || 'Unverified'}
+                                </span>
+                            </td>
+                            <td class="p-4 text-textGray text-sm">${user.createdAt ? new Date(user.createdAt.toDate()).toLocaleDateString() : 'N/A'}</td>
+                            <td class="p-4">
+                                <button onclick="event.stopPropagation(); editUserBalance('${doc.id}')" class="text-admin hover:text-white transition-colors mr-3" title="Edit Balance">
+                                    <i class="fas fa-wallet"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteUser('${doc.id}')" class="text-danger hover:text-white transition-colors" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tbody.innerHTML = html || '<tr><td colspan="6" class="p-8 text-center text-textGray">No users found</td></tr>';
+            });
+        }
+        
+        function searchUsers() {
+            const term = document.getElementById('user-search').value.toLowerCase();
+            const rows = document.querySelectorAll('.user-row');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+        
+        function showUserDetail(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            
+            const modal = document.getElementById('user-modal');
+            const content = document.getElementById('user-detail-content');
+            
+            const totalBal = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                            (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+            
+            content.innerHTML = `
+                <div class="flex items-center gap-4 mb-6">
+                    <img src="${user.avatar || 'https://via.placeholder.com/80'}" class="w-20 h-20 rounded-full object-cover border-2 border-admin">
+                    <div>
+                        <h4 class="text-xl font-bold">${user.name || 'N/A'}</h4>
+                        <p class="text-textGray">${user.email || 'N/A'}</p>
+                        <p class="text-textGray text-sm">${user.phone || 'N/A'}</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-surface p-4 rounded-lg border border-border">
+                        <p class="text-textGray text-xs mb-1">Spot Balance</p>
+                        <p class="text-lg font-bold text-primary">₹${(user.spotBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg border border-border">
+                        <p class="text-textGray text-xs mb-1">Futures</p>
+                        <p class="text-lg font-bold text-secondary">₹${(user.futuresBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg border border-border">
+                        <p class="text-textGray text-xs mb-1">Investments</p>
+                        <p class="text-lg font-bold text-primary">₹${(user.investBalance || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-surface p-4 rounded-lg border border-border">
+                        <p class="text-textGray text-xs mb-1">Total</p>
+                        <p class="text-lg font-bold text-admin">₹${totalBal.toLocaleString()}</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-surface rounded-lg border border-border">
+                        <span>KYC Status</span>
+                        <select onchange="updateUserKYC('${userId}', this.value)" class="bg-bgDeep border border-border rounded-lg px-3 py-1 text-sm">
+                            <option value="unverified" ${user.kycStatus === 'unverified' ? 'selected' : ''}>Unverified</option>
+                            <option value="pending" ${user.kycStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="verified" ${user.kycStatus === 'verified' ? 'selected' : ''}>Verified</option>
+                            <option value="rejected" ${user.kycStatus === 'rejected' ? 'selected' : ''}>Rejected</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="addBalance('${userId}')" class="btn-success w-full py-3 rounded-lg">
+                            <i class="fas fa-plus mr-2"></i>Add Balance
+                        </button>
+                        <button onclick="deductBalance('${userId}')" class="btn-danger w-full py-3 rounded-lg">
+                            <i class="fas fa-minus mr-2"></i>Deduct Balance
+                        </button>
+                    </div>
+                    
+                    <button onclick="viewUserTransactions('${userId}')" class="w-full py-3 rounded-lg border border-border hover:bg-surfaceLight transition-colors">
+                        View Transaction History
+                    </button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.remove('active');
+        }
+        
+        function updateUserKYC(userId, status) {
+            db.collection('users').doc(userId).update({ kycStatus: status })
+                .then(() => showToast('KYC status updated'))
+                .catch(err => showToast('Error: ' + err.message, 'error'));
+        }
+        
+        function addBalance(userId) {
+            const amount = prompt('Enter amount to add:');
+            if (!amount || isNaN(amount)) return;
+            
+            db.collection('users').doc(userId).update({
+                spotBalance: firebase.firestore.FieldValue.increment(parseFloat(amount))
+            }).then(() => {
+                showToast('Balance added successfully');
+                // Log transaction
+                db.collection('adminTransactions').add({
+                    type: 'credit',
+                    userId: userId,
+                    amount: parseFloat(amount),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    adminId: currentAdmin.uid
+                });
+            });
+        }
+        
+        function deductBalance(userId) {
+            const amount = prompt('Enter amount to deduct:');
+            if (!amount || isNaN(amount)) return;
+            
+            db.collection('users').doc(userId).update({
+                spotBalance: firebase.firestore.FieldValue.increment(-parseFloat(amount))
+            }).then(() => showToast('Balance deducted'));
+        }
+        
+        function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            db.collection('users').doc(userId).delete()
+                .then(() => showToast('User deleted'))
+                .catch(err => showToast('Error: ' + err.message, 'error'));
+        }
+        
+        // Transactions
+        function showTransactionTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('deposits-panel').classList.add('hidden');
+            document.getElementById('withdrawals-panel').classList.add('hidden');
+            document.getElementById(tab + '-panel').classList.remove('hidden');
+        }
+        
+        function loadTransactions() {
+            // Pending Deposits
+            db.collection('payments').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                const container = document.getElementById('pending-deposits-list');
+                let html = '';
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                        <div class="flex items-center justify-between p-4 bg-surface rounded-lg border border-border">
+                            <div>
+                                <p class="font-bold">${data.userName || 'Unknown'}</p>
+                                <p class="text-textGray text-sm">₹${data.amount} | ${data.txid}</p>
+                                <p class="text-textGray text-xs">${data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : 'N/A'}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="approveDeposit('${doc.id}', '${data.uid}', ${data.amount})" class="btn-success text-sm px-4">
+                                    <i class="fas fa-check mr-1"></i>Approve
+                                </button>
+                                <button onclick="rejectDeposit('${doc.id}')" class="btn-danger text-sm px-4">
+                                    <i class="fas fa-times mr-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<p class="text-textGray text-center py-4">No pending deposits</p>';
+            });
+            
+            // Pending Withdrawals
+            db.collection('withdrawals').where('status', '==', 'pending').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                const container = document.getElementById('pending-withdrawals-list');
+                let html = '';
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                        <div class="flex items-center justify-between p-4 bg-surface rounded-lg border border-border">
+                            <div>
+                                <p class="font-bold">${data.userName || 'Unknown'}</p>
+                                <p class="text-textGray text-sm">₹${data.amount} | ${data.upi}</p>
+                                <p class="text-textGray text-xs">${data.account} Account</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="approveWithdrawal('${doc.id}')" class="btn-success text-sm px-4">
+                                    <i class="fas fa-check mr-1"></i>Pay
+                                </button>
+                                <button onclick="rejectWithdrawal('${doc.id}')" class="btn-danger text-sm px-4">
+                                    <i class="fas fa-times mr-1"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<p class="text-textGray text-center py-4">No pending withdrawals</p>';
+            });
+        }
+        
+        function approveDeposit(docId, userId, amount) {
+            db.collection('payments').doc(docId).update({ status: 'approved' }).then(() => {
+                db.collection('users').doc(userId).update({
+                    spotBalance: firebase.firestore.FieldValue.increment(amount)
+                });
+                showToast('Deposit approved');
+            });
+        }
+        
+        function rejectDeposit(docId) {
+            db.collection('payments').doc(docId).update({ status: 'rejected' })
+                .then(() => showToast('Deposit rejected'));
+        }
+        
+        function approveWithdrawal(docId) {
+            db.collection('withdrawals').doc(docId).update({ status: 'approved', paidAt: firebase.firestore.FieldValue.serverTimestamp() })
+                .then(() => showToast('Withdrawal marked as paid'));
+        }
+        
+        function rejectWithdrawal(docId) {
+            db.collection('withdrawals').doc(docId).update({ status: 'rejected' })
+                .then(() => showToast('Withdrawal rejected'));
+        }
+        
+        // KYC Management
+        function loadKYCRequests() {
+            db.collection('kyc').where('status', '==', 'pending').onSnapshot(snapshot => {
+                const container = document.getElementById('kyc-requests-container');
+                let html = '';
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                        <div class="admin-card p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h4 class="font-bold">${data.userName}</h4>
+                                <span class="badge badge-warning">Pending</span>
+                            </div>
+                            <p class="text-textGray text-sm mb-4">${data.documentType?.toUpperCase()}: ${data.documentNumber}</p>
+                            
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div>
+                                    <p class="text-xs text-textGray mb-1">Photo</p>
+                                    <img src="${data.photoUrl}" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80" onclick="window.open('${data.photoUrl}')">
+                                </div>
+                                <div>
+                                    <p class="text-xs text-textGray mb-1">Document</p>
+                                    <img src="${data.documentUrl}" class="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80" onclick="window.open('${data.documentUrl}')">
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <button onclick="verifyKYC('${doc.id}', '${data.uid}', true)" class="flex-1 btn-success py-2 rounded-lg">
+                                    <i class="fas fa-check mr-2"></i>Verify
+                                </button>
+                                <button onclick="verifyKYC('${doc.id}', '${data.uid}', false)" class="flex-1 btn-danger py-2 rounded-lg">
+                                    <i class="fas fa-times mr-2"></i>Reject
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html || '<p class="text-textGray text-center col-span-3 py-8">No pending KYC requests</p>';
+            });
+        }
+        
+        function verifyKYC(docId, userId, approved) {
+            const status = approved ? 'verified' : 'rejected';
+            db.collection('kyc').doc(docId).update({ status: status, processedAt: firebase.firestore.FieldValue.serverTimestamp() }).then(() => {
+                db.collection('users').doc(userId).update({ kycStatus: status });
+                showToast(approved ? 'KYC Verified' : 'KYC Rejected');
+            });
+        }
+        
+        // NFT Management
+        function loadNFTs() {
+            // This would load from your NFT collection if you store them in DB
+            // For now, showing static with edit capability
+            const container = document.getElementById('admin-nft-list');
+            container.innerHTML = `
+                <div class="admin-card p-4 border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-admin min-h-[200px]" onclick="openAddNFTModal()">
+                    <div class="text-center">
+                        <i class="fas fa-plus text-3xl text-admin mb-2"></i>
+                        <p class="text-admin font-semibold">Add New NFT</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function openAddNFTModal() {
+            const name = prompt('NFT Name:');
+            if (!name) return;
+            const price = prompt('Price (₹):');
+            const desc = prompt('Description:');
+            
+            // Add to database logic here
+            showToast('NFT Added (Demo)');
+        }
+        
+        // Investment Plans
+        function openAddPlanModal() {
+            const name = prompt('Plan Name:');
+            if (!name) return;
+            const ret = prompt('Return %:');
+            const min = prompt('Min Investment (₹):');
+            const duration = prompt('Duration (days):');
+            
+            showToast('Plan Created (Demo)');
+        }
+        
+        // Website Editor Functions
+        let editMode = false;
+        
+        function toggleEditMode() {
+            editMode = !editMode;
+            const btn = document.getElementById('edit-mode-btn');
+            
+            if (editMode) {
+                btn.innerHTML = '<i class="fas fa-magic mr-2"></i>Edit Mode: ON';
+                btn.classList.add('bg-admin', 'text-white');
+                btn.classList.remove('bg-admin/20', 'text-admin');
+                enableEditMode();
+            } else {
+                btn.innerHTML = '<i class="fas fa-magic mr-2"></i>Edit Mode: OFF';
+                btn.classList.remove('bg-admin', 'text-white');
+                btn.classList.add('bg-admin/20', 'text-admin');
+                disableEditMode();
+            }
+        }
+        
+        function setupEditableElements() {
+            document.querySelectorAll('.editable').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    if (!editMode) return;
+                    e.stopPropagation();
+                    selectElement(this);
+                });
+            });
+        }
+        
+        function enableEditMode() {
+            document.querySelectorAll('.editable').forEach(el => {
+                el.contentEditable = true;
+                el.classList.add('ring-2', 'ring-admin', 'ring-opacity-50');
+            });
+        }
+        
+        function disableEditMode() {
+            document.querySelectorAll('.editable').forEach(el => {
+                el.contentEditable = false;
+                el.classList.remove('ring-2', 'ring-admin', 'ring-opacity-50');
+            });
+            document.getElementById('edit-toolbar').classList.remove('active');
+        }
+        
+        function selectElement(el) {
+            selectedElement = el;
+            document.getElementById('edit-toolbar').classList.add('active');
+            
+            // Position toolbar above element
+            const rect = el.getBoundingClientRect();
+            const toolbar = document.getElementById('edit-toolbar');
+            toolbar.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+        }
+        
+        function changeColor() {
+            if (!selectedElement) return;
+            const color = prompt('Enter color (hex):', '#00c853');
+            if (color) selectedElement.style.color = color;
+        }
+        
+        function changeSize(action) {
+            if (!selectedElement) return;
+            const currentSize = parseInt(window.getComputedStyle(selectedElement).fontSize);
+            const newSize = action === 'increase' ? currentSize + 2 : currentSize - 2;
+            selectedElement.style.fontSize = newSize + 'px';
+        }
+        
+        function toggleBold() {
+            if (!selectedElement) return;
+            selectedElement.style.fontWeight = 
+                selectedElement.style.fontWeight === 'bold' ? 'normal' : 'bold';
+        }
+        
+        function deleteElement() {
+            if (!selectedElement) return;
+            if (confirm('Delete this element?')) {
+                selectedElement.remove();
+                document.getElementById('edit-toolbar').classList.remove('active');
+            }
+        }
+        
+        function saveEdit() {
+            document.getElementById('edit-toolbar').classList.remove('active');
+            showToast('Changes saved locally');
+        }
+        
+        function saveWebsiteChanges() {
+            // Save to Firebase
+            const changes = {};
+            document.querySelectorAll('.editable').forEach(el => {
+                const field = el.getAttribute('data-field');
+                if (field) changes[field] = el.innerHTML;
+            });
+            
+            db.collection('website').doc('content').set(changes, { merge: true })
+                .then(() => showToast('Website updated successfully'));
+        }
+        
+        // Settings
+        function loadSettings() {
+            db.collection('admin').doc('config').onSnapshot(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('setting-upi').value = data.upi || '';
+                    document.getElementById('setting-usdt').value = data.usdtAddress || '';
+                }
+            });
+        }
+        
+        function saveSettings() {
+            const upi = document.getElementById('setting-upi').value;
+            const usdt = document.getElementById('setting-usdt').value;
+            
+            db.collection('admin').doc('config').set({
+                upi: upi,
+                usdtAddress: usdt,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(() => showToast('Settings saved'));
+        }
+        
+        // Utilities
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg z-[10002] ${type === 'error' ? 'bg-danger' : 'bg-admin'} text-white font-semibold shadow-lg`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function exportUsers() {
+            let csv = 'Name,Email,Phone,Balance,KYC Status\n';
+            allUsers.forEach(u => {
+                const bal = (u.spotBalance || 0) + (u.futuresBalance || 0);
+                csv += `${u.name || ''},${u.email || ''},${u.phone || ''},${bal},${u.kycStatus || 'unverified'}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'users.csv';
+            a.click();
+        }
+    </script>
+</body>
+  </html>
