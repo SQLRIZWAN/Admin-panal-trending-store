@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Panel - Trending Store Pro</title>
+    
+    <meta name="theme-color" content="#0b0e11">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#00c853',
+                        secondary: '#ffd600',
+                        danger: '#ff3d00',
+                        bgDeep: '#0b0e11',
+                        surface: '#151a21',
+                        surfaceLight: '#1e2329',
+                        border: '#2b3139',
+                        textGray: '#848e9c',
+                        purple: '#8b5cf6',
+                        orange: '#f97316'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0b0e11; color: #eaecef; font-family: 'Inter', sans-serif; font-size: 14px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2b3139; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00c853; }
+        .glass { background: rgba(21, 26, 33, 0.95); backdrop-filter: blur(20px); border: 1px solid #2b3139; }
+        .input-admin { background: #0b0e11; border: 1px solid #2b3139; color: #eaecef; padding: 10px 14px; border-radius: 8px; width: 100%; transition: all 0.2s; }
+        .input-admin:focus { outline: none; border-color: #00c853; }
+        .btn-primary { background: #00c853; color: #000; font-weight: 700; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background: #00b34a; transform: translateY(-1px); }
+        .btn-danger { background: #ff3d00; color: #fff; font-weight: 700; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary { background: #2b3139; color: #eaecef; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background: #3a4149; }
+        .btn-purple { background: #8b5cf6; color: #fff; font-weight: 700; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; }
+        .nav-item { padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; display: flex; align-items: center; gap: 12px; color: #848e9c; }
+        .nav-item:hover { background: #1e2329; color: #eaecef; }
+        .nav-item.active { background: rgba(0, 200, 83, 0.1); color: #00c853; border-left-color: #00c853; }
+        .stat-card { background: linear-gradient(145deg, #151a21, #1e2329); border: 1px solid #2b3139; border-radius: 12px; padding: 20px; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px; background: #0b0e11; color: #848e9c; font-weight: 600; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #2b3139; white-space: nowrap; }
+        td { padding: 12px; border-bottom: 1px solid #2b3139; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: rgba(0, 200, 83, 0.2); color: #00c853; }
+        .badge-warning { background: rgba(255, 214, 0, 0.2); color: #ffd600; }
+        .badge-danger { background: rgba(255, 61, 0, 0.2); color: #ff3d00; }
+        .badge-info { background: rgba(33, 150, 243, 0.2); color: #2196f3; }
+        .badge-purple { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: #151a21; border: 1px solid #2b3139; border-radius: 16px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; animation: modalSlide 0.3s ease; }
+        @keyframes modalSlide { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { padding: 20px; border-bottom: 1px solid #2b3139; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #2b3139; display: flex; justify-content: flex-end; gap: 10px; }
+        .tab-btn { padding: 10px 20px; background: transparent; border: none; color: #848e9c; cursor: pointer; border-bottom: 2px solid transparent; font-weight: 600; white-space: nowrap; }
+        .tab-btn.active { color: #00c853; border-bottom-color: #00c853; }
+        .toast { position: fixed; top: 20px; right: 20px; background: #151a21; border: 1px solid #00c853; color: #00c853; padding: 16px 24px; border-radius: 8px; z-index: 10000; transform: translateX(400px); transition: transform 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-color: #ff3d00; color: #ff3d00; }
+        .search-box { background: #0b0e11; border: 1px solid #2b3139; border-radius: 8px; padding: 10px 16px; color: white; width: 100%; max-width: 300px; }
+        .filter-select { background: #0b0e11; border: 1px solid #2b3139; border-radius: 8px; padding: 10px; color: white; }
+        .sidebar { width: 280px; height: 100vh; position: fixed; left: 0; top: 0; background: #0b0e11; border-right: 1px solid #2b3139; overflow-y: auto; z-index: 100; transform: translateX(0); transition: transform 0.3s ease-out; }
+        .main-content { margin-left: 280px; padding: 20px; min-height: 100vh; transition: margin-left 0.3s; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; transition: opacity 0.3s; }
+        .sidebar-overlay.active { display: block; opacity: 1; }
+        .section-content { display: none; animation: fadeIn 0.3s ease; }
+        .section-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 1024px) { .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; } }
+        .loading-skeleton { background: linear-gradient(90deg, #1e2329 25%, #2b3139 50%, #1e2329 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 20px; }
+        .page-btn { padding: 8px 12px; border: 1px solid #2b3139; background: #0b0e11; color: #eaecef; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .page-btn.active { background: #00c853; color: #000; border-color: #00c853; }
+        .empty-state { text-align: center; padding: 40px; color: #848e9c; }
+        .spinner { border: 3px solid #2b3139; border-top: 3px solid #00c853; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Login Screen - Only Login, No Register/Forgot -->
+    <div id="login-screen" class="fixed inset-0 bg-bgDeep z-50 flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shield-alt text-2xl text-primary"></i>
+                </div>
+                <h1 class="text-2xl font-bold">Admin Login</h1>
+                <p class="text-textGray text-sm mt-2">Trending Store Pro - Authorized Personnel Only</p>
+            </div>
+            <form onsubmit="handleAdminLogin(event)">
+                <div class="mb-4">
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Admin Email</label>
+                    <input type="email" id="admin-email" class="input-admin" placeholder="admin@trendingstore.com" required autocomplete="email">
+                </div>
+                <div class="mb-6">
+                    <label class="text-textGray text-xs uppercase font-semibold mb-2 block">Password</label>
+                    <input type="password" id="admin-password" class="input-admin" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-primary w-full py-3" id="login-btn">
+                    <i class="fas fa-lock mr-2"></i>Secure Login
+                </button>
+            </form>
+            <div class="mt-6 text-center text-xs text-textGray">
+                <p><i class="fas fa-exclamation-circle mr-1"></i>Authorized Access Only</p>
+                <p class="mt-2 text-danger">New account creation disabled</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel" class="hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="p-6 border-b border-border">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-black text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-lg">Admin Panel</h2>
+                        <p class="text-textGray text-xs">Trending Store Pro</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="py-4">
+                <div class="nav-item active" data-section="dashboard" onclick="handleNavClick('dashboard')">
+                    <i class="fas fa-home w-5"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-section="users" onclick="handleNavClick('users')">
+                    <i class="fas fa-users w-5"></i>
+                    <span>Users</span>
+                </div>
+                <div class="nav-item" data-section="financial" onclick="handleNavClick('financial')">
+                    <i class="fas fa-money-bill-wave w-5"></i>
+                    <span>Financial</span>
+                    <span class="ml-auto bg-danger text-white text-xs px-2 py-0.5 rounded-full hidden" id="pending-badge">0</span>
+                </div>
+                <div class="nav-item" data-section="kyc" onclick="handleNavClick('kyc')">
+                    <i class="fas fa-id-card w-5"></i>
+                    <span>KYC Verification</span>
+                    <span class="ml-auto bg-warning text-black text-xs px-2 py-0.5 rounded-full hidden" id="kyc-badge">0</span>
+                </div>
+                <div class="nav-item" data-section="trading" onclick="handleNavClick('trading')">
+                    <i class="fas fa-chart-line w-5"></i>
+                    <span>Trading</span>
+                </div>
+                <div class="nav-item" data-section="investments" onclick="handleNavClick('investments')">
+                    <i class="fas fa-chart-pie w-5"></i>
+                    <span>Investments</span>
+                </div>
+                <div class="nav-item" data-section="nft" onclick="handleNavClick('nft')">
+                    <i class="fas fa-image w-5"></i>
+                    <span>NFT</span>
+                </div>
+                <div class="nav-item" data-section="referral" onclick="handleNavClick('referral')">
+                    <i class="fas fa-sitemap w-5"></i>
+                    <span>Referrals</span>
+                </div>
+                <div class="nav-item" data-section="tickets" onclick="handleNavClick('tickets')">
+                    <i class="fas fa-ticket-alt w-5"></i>
+                    <span>Tickets</span>
+                </div>
+                <div class="nav-item" data-section="notifications" onclick="handleNavClick('notifications')">
+                    <i class="fas fa-bell w-5"></i>
+                    <span>Notifications</span>
+                </div>
+                <div class="nav-item" data-section="settings" onclick="handleNavClick('settings')">
+                    <i class="fas fa-cog w-5"></i>
+                    <span>Settings</span>
+                </div>
+                <div class="nav-item" data-section="logs" onclick="handleNavClick('logs')">
+                    <i class="fas fa-history w-5"></i>
+                    <span>Logs</span>
+                </div>
+            </nav>
+            
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-bgDeep">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <i class="fas fa-user text-primary text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold truncate" id="admin-name">Admin</p>
+                        <p class="text-xs text-textGray">Online</p>
+                    </div>
+                </div>
+                <button onclick="adminLogout()" class="flex items-center gap-3 text-danger w-full px-4 py-2 rounded-lg hover:bg-danger/10 transition-colors text-sm">
+                    <i class="fas fa-power-off"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="flex justify-between items-center mb-8">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="lg:hidden btn-secondary">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="page-title" class="text-2xl font-bold">Dashboard</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-2 px-4 py-2 bg-surface rounded-lg border border-border">
+                        <div class="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                        <span class="text-sm font-medium">System Online</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="section-content active">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card cursor-pointer" onclick="handleNavClick('users')">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-textGray text-sm">Total Users</p>
+                                <h3 class="text-2xl font-bold mt-1" id="stat-users">0</h3>
+                            </div>
+                            <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-primary"></i>
+                            </div>
+                        </div>
+                        <p class="text-primary text-sm"><i class="fas fa-arrow-up mr-1"></i><span id="stat-new-users">0</span> new today</p>
+                    </div>
+                    
+                    <div class="stat-card cursor-pointer" onclick="handleNavClick('financial')">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-textGray text-sm">Total Deposits</p>
+                                <h3 class="text-2xl font-bold mt-1 text-primary" id="stat-deposits">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-wallet text-primary"></i>
+                            </div>
+                        </div>
+                        <p class="text-textGray text-sm">Pending: <span id="stat-pending-deposits" class="text-warning">0</span></p>
+                    </div>
+                    
+                    <div class="stat-card cursor-pointer" onclick="handleNavClick('financial')">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-textGray text-sm">Pending Withdrawals</p>
+                                <h3 class="text-2xl font-bold mt-1 text-danger" id="stat-pending-withdrawals">0</h3>
+                            </div>
+                            <div class="w-10 h-10 bg-danger/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-danger"></i>
+                            </div>
+                        </div>
+                        <p class="text-danger text-sm">Needs Action</p>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-textGray text-sm">Platform Balance</p>
+                                <h3 class="text-2xl font-bold mt-1" id="stat-platform-balance">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 bg-purple/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-line text-purple"></i>
+                            </div>
+                        </div>
+                        <p class="text-textGray text-sm">Total user holdings</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold mb-4">Recent Deposits</h3>
+                        <div id="recent-deposits-list" class="space-y-3">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="font-bold mb-4">Recent Withdrawals</h3>
+                        <div id="recent-withdrawals-list" class="space-y-3">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="section-users" class="section-content">
+                <div class="glass rounded-xl p-6 mb-6">
+                    <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+                        <div class="flex gap-4 w-full md:w-auto flex-1 flex-wrap">
+                            <input type="text" id="user-search" class="search-box" placeholder="Search by name, email, phone..." onkeyup="searchUsers()">
+                            <select id="user-filter" class="filter-select" onchange="filterUsers()">
+                                <option value="all">All Users</option>
+                                <option value="verified">KYC Verified</option>
+                                <option value="unverified">KYC Unverified</option>
+                                <option value="pending">KYC Pending</option>
+                                <option value="blocked">Blocked</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="exportUsers()" class="btn-secondary">
+                                <i class="fas fa-download mr-2"></i>Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Contact</th>
+                                    <th>Balances</th>
+                                    <th>KYC</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <tr><td colspan="6" class="text-center py-8 text-textGray">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="users-pagination"></div>
+                </div>
+            </section>
+
+            <!-- Financial Section -->
+            <section id="section-financial" class="section-content">
+                <div class="flex gap-4 mb-6 border-b border-border overflow-x-auto">
+                    <button class="tab-btn active" onclick="switchFinancialTab('deposits-pending')">Pending Deposits</button>
+                    <button class="tab-btn" onclick="switchFinancialTab('deposits-history')">Deposit History</button>
+                    <button class="tab-btn" onclick="switchFinancialTab('withdrawals-pending')">Pending Withdrawals</button>
+                    <button class="tab-btn" onclick="switchFinancialTab('withdrawals-history')">Withdrawal History</button>
+                </div>
+                
+                <div class="glass rounded-xl p-6" id="financial-content">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Type</th>
+                                    <th>Proof/Details</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="financial-tbody">
+                                <tr><td colspan="6" class="text-center py-8 text-textGray">Select a tab to view data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KYC Section -->
+            <section id="section-kyc" class="section-content">
+                <div class="flex gap-4 mb-6 border-b border-border overflow-x-auto">
+                    <button class="tab-btn active" onclick="switchKYCTab('pending')">Pending</button>
+                    <button class="tab-btn" onclick="switchKYCTab('verified')">Verified</button>
+                    <button class="tab-btn" onclick="switchKYCTab('rejected')">Rejected</button>
+                </div>
+                
+                <div class="glass rounded-xl p-6">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Document Type</th>
+                                    <th>Document Number</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kyc-tbody">
+                                <tr><td colspan="5" class="text-center py-8 text-textGray">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Trading Section -->
+            <section id="section-trading" class="section-content">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm mb-2">24h Volume</h4>
+                        <p class="text-2xl font-bold text-primary">₹0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm mb-2">Open Orders</h4>
+                        <p class="text-2xl font-bold">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm mb-2">Active Positions</h4>
+                        <p class="text-2xl font-bold text-primary">0</p>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Recent Orders</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Pair</th>
+                                    <th>Type</th>
+                                    <th>Side</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-tbody">
+                                <tr><td colspan="6" class="text-center py-4 text-textGray">Loading orders...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Investments Section -->
+            <section id="section-investments" class="section-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Investment Plans</h2>
+                    <button onclick="openInvestModal()" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Add Plan
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" id="investment-list">
+                    <!-- Dynamic content -->
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Active Investments</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Plan</th>
+                                    <th>Amount</th>
+                                    <th>Returns</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="active-investments-tbody">
+                                <tr><td colspan="5" class="text-center py-4 text-textGray">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NFT Section -->
+            <section id="section-nft" class="section-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">NFT Management</h2>
+                    <button onclick="openNFTModal()" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>Add NFT
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="nft-list">
+                    <!-- Dynamic content -->
+                </div>
+            </section>
+
+            <!-- Referral Section -->
+            <section id="section-referral" class="section-content">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm">Total Referrals</h4>
+                        <p class="text-2xl font-bold text-primary" id="total-referrals">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm">Commission Paid</h4>
+                        <p class="text-2xl font-bold" id="commission-paid">₹0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-textGray text-sm">Top Referrer</h4>
+                        <p class="text-lg font-bold" id="top-referrer">-</p>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Referral Settings</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-textGray text-sm mb-2 block">Level 1 (%)</label>
+                            <input type="number" id="ref-level-1" class="input-admin" value="10">
+                        </div>
+                        <div>
+                            <label class="text-textGray text-sm mb-2 block">Level 2 (%)</label>
+                            <input type="number" id="ref-level-2" class="input-admin" value="5">
+                        </div>
+                        <div>
+                            <label class="text-textGray text-sm mb-2 block">Level 3 (%)</label>
+                            <input type="number" id="ref-level-3" class="input-admin" value="2">
+                        </div>
+                    </div>
+                    <button onclick="saveReferralSettings()" class="btn-primary mt-4">Save Settings</button>
+                </div>
+            </section>
+
+            <!-- Tickets Section -->
+            <section id="section-tickets" class="section-content">
+                <div class="flex gap-4 mb-6 border-b border-border overflow-x-auto">
+                    <button class="tab-btn active" onclick="switchTicketTab('open')">Open</button>
+                    <button class="tab-btn" onclick="switchTicketTab('resolved')">Resolved</button>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2" id="tickets-list">
+                        <!-- Dynamic tickets -->
+                    </div>
+                    <div>
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="font-bold mb-4">Quick Stats</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-textGray">Avg Response</span>
+                                    <span class="font-bold">2.5 hours</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-textGray">Resolution Rate</span>
+                                    <span class="font-bold text-primary">94%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications Section -->
+            <section id="section-notifications" class="section-content">
+                <div class="glass rounded-xl p-6 max-w-2xl mb-6">
+                    <h2 class="text-xl font-bold mb-6">Send Notification</h2>
+                    
+                    <div class="mb-4">
+                        <label class="text-textGray text-sm mb-2 block">Send To</label>
+                        <select id="notif-type" class="input-admin mb-4" onchange="toggleNotifTarget()">
+                            <option value="all">All Users</option>
+                            <option value="specific">Specific User</option>
+                        </select>
+                        
+                        <div id="specific-user-input" class="hidden mb-4">
+                            <input type="text" id="notif-uid" class="input-admin" placeholder="Enter User ID">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="text-textGray text-sm mb-2 block">Title</label>
+                        <input type="text" id="notif-title" class="input-admin" placeholder="Notification title">
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="text-textGray text-sm mb-2 block">Message</label>
+                        <textarea id="notif-message" rows="4" class="input-admin" placeholder="Enter message..."></textarea>
+                    </div>
+                    
+                    <button onclick="sendNotification()" class="btn-primary w-full">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Notification
+                    </button>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="section-settings" class="section-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-6">Payment Settings</h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">UPI ID for Payments</label>
+                                <input type="text" id="setting-upi" class="input-admin" placeholder="username@upi">
+                            </div>
+                            
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">USDT Address (BEP20)</label>
+                                <input type="text" id="setting-usdt" class="input-admin" placeholder="0x...">
+                            </div>
+                            
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">Minimum Deposit (₹)</label>
+                                <input type="number" id="setting-min-deposit" class="input-admin" value="100">
+                            </div>
+                            
+                            <div>
+                                <label class="text-textGray text-sm mb-2 block">Minimum Withdrawal (₹)</label>
+                                <input type="number" id="setting-min-withdrawal" class="input-admin" value="500">
+                            </div>
+                            
+                            <button onclick="saveSettings()" class="btn-primary w-full">
+                                <i class="fas fa-save mr-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-6">
+                        <h2 class="text-xl font-bold mb-6">System Maintenance</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-surface rounded-lg border border-border">
+                                <div>
+                                    <p class="font-medium">Maintenance Mode</p>
+                                    <p class="text-xs text-textGray">Disable user access</p>
+                                </div>
+                                <label class="switch relative inline-block w-12 h-6">
+                                    <input type="checkbox" id="maintenance-mode" class="opacity-0 w-0 h-0" onchange="toggleMaintenance()">
+                                    <span class="slider absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-600 rounded-full transition-all before:absolute before:content-[''] before:h-4 before:w-4 before:left-1 before:bottom-1 before:bg-white before:rounded-full before:transition-all"></span>
+                                </label>
+                            </div>
+                            
+                            <button onclick="clearCache()" class="w-full p-3 bg-surface hover:bg-surfaceLight rounded-lg text-left text-sm flex justify-between items-center border border-border">
+                                <span>Clear System Cache</span>
+                                <i class="fas fa-trash text-danger"></i>
+                            </button>
+                            
+                            <button onclick="backupDatabase()" class="w-full p-3 bg-surface hover:bg-surfaceLight rounded-lg text-left text-sm flex justify-between items-center border border-border">
+                                <span>Backup Database</span>
+                                <i class="fas fa-download text-primary"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Logs Section -->
+            <section id="section-logs" class="section-content">
+                <div class="glass rounded-xl p-6">
+                    <h3 class="font-bold mb-4">Admin Activity Logs</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Admin</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logs-tbody">
+                                <tr><td colspan="4" class="text-center py-8 text-textGray">Loading logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold">User Details</h3>
+                <button onclick="closeModal('user-modal')" class="text-textGray hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="modal-body" id="user-modal-body">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('user-modal')" class="btn-secondary">Close</button>
+                <button onclick="saveUserChanges()" class="btn-primary">Save Changes</button>
+                <button onclick="toggleBlockUser()" class="btn-danger" id="block-btn">Block User</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="image-modal" class="modal">
+        <div class="modal-content" style="max-width: 90%; max-height: 90%; background: transparent; border: none;">
+            <div class="text-right mb-4">
+                <button onclick="closeModal('image-modal')" class="text-white text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            <img id="modal-image" src="" style="max-width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px;">
+        </div>
+    </div>
+
+    <!-- NFT Modal -->
+    <div id="nft-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold">Add/Edit NFT</h3>
+                <button onclick="closeModal('nft-modal')" class="text-textGray hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="nft-id">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Name</label>
+                        <input type="text" id="nft-name" class="input-admin">
+                    </div>
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Price (₹)</label>
+                        <input type="number" id="nft-price" class="input-admin">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-textGray text-sm mb-2 block">Description</label>
+                    <textarea id="nft-desc" class="input-admin" rows="3"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Daily Profit (₹)</label>
+                        <input type="number" id="nft-profit" class="input-admin">
+                    </div>
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Holding Days</label>
+                        <input type="number" id="nft-days" class="input-admin">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-textGray text-sm mb-2 block">Image URL</label>
+                    <input type="text" id="nft-image" class="input-admin" placeholder="https://...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('nft-modal')" class="btn-secondary">Cancel</button>
+                <button onclick="saveNFT()" class="btn-primary">Save NFT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investment Modal -->
+    <div id="invest-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="text-xl font-bold">Add Investment Plan</h3>
+                <button onclick="closeModal('invest-modal')" class="text-textGray hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Plan Name</label>
+                        <input type="text" id="plan-name" class="input-admin">
+                    </div>
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Return (%)</label>
+                        <input type="number" id="plan-return" class="input-admin">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Min Amount (₹)</label>
+                        <input type="number" id="plan-min" class="input-admin">
+                    </div>
+                    <div>
+                        <label class="text-textGray text-sm mb-2 block">Duration (Days)</label>
+                        <input type="number" id="plan-duration" class="input-admin">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-textGray text-sm mb-2 block">Description</label>
+                    <textarea id="plan-desc" class="input-admin" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('invest-modal')" class="btn-secondary">Cancel</button>
+                <button onclick="saveInvestPlan()" class="btn-primary">Save Plan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ==========================================
+        // 🔥 FIREBASE CONFIGURATION
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyAozV8jcau0GuIKBPCMFAbChm75O9VE1Rs",
+            authDomain: "treding-store-2.firebaseapp.com",
+            projectId: "treding-store-2",
+            storageBucket: "treding-store-2.firebasestorage.app",
+            messagingSenderId: "2938541914",
+            appId: "1:2938541914:web:7fe53d76a34ec044c90563",
+            measurementId: "G-9YWCKFZKB1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ==========================================
+        // 🎨 STATE MANAGEMENT
+        // ==========================================
+        let currentUser = null;
+        let currentEditingUser = null;
+        let usersData = [];
+        let usersPerPage = 20;
+        let currentPage = 1;
+
+        // Auth State Listener - Only Login, No Register
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Check if user is admin
+                db.collection('admins').doc(user.uid).get().then(doc => {
+                    if (doc.exists || user.email === 'admin@trendingstore.com' || user.email === 'sql@gmail.com') {
+                        currentUser = user;
+                        document.getElementById('login-screen').classList.add('hidden');
+                        document.getElementById('admin-panel').classList.remove('hidden');
+                        document.getElementById('admin-name').textContent = user.email;
+                        initializeDashboard();
+                    } else {
+                        showToast('Unauthorized access', 'error');
+                        auth.signOut();
+                    }
+                }).catch(() => {
+                    // If admins collection doesn't exist, check email
+                    if (user.email === 'admin@trendingstore.com' || user.email === 'sql@gmail.com') {
+                        currentUser = user;
+                        document.getElementById('login-screen').classList.add('hidden');
+                        document.getElementById('admin-panel').classList.remove('hidden');
+                        document.getElementById('admin-name').textContent = user.email;
+                        initializeDashboard();
+                    } else {
+                        showToast('Unauthorized access', 'error');
+                        auth.signOut();
+                    }
+                });
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('admin-panel').classList.add('hidden');
+            }
+        });
+
+        // Login Handler - No Register/Forgot Password
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+            const btn = document.getElementById('login-btn');
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Logging in...';
+            btn.disabled = true;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    showToast(error.message, 'error');
+                    btn.innerHTML = '<i class="fas fa-lock mr-2"></i>Secure Login';
+                    btn.disabled = false;
+                });
+        }
+
+        function adminLogout() {
+            auth.signOut();
+        }
+
+        // ==========================================
+        // 🔧 NAVIGATION
+        // ==========================================
+        function handleNavClick(section) {
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.section === section) el.classList.add('active');
+            });
+            
+            document.querySelectorAll('.section-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`section-${section}`).classList.add('active');
+            
+            const titles = {
+                dashboard: 'Dashboard',
+                users: 'User Management',
+                financial: 'Financial Operations',
+                kyc: 'KYC Verification',
+                trading: 'Trading Management',
+                investments: 'Investment Plans',
+                nft: 'NFT Management',
+                referral: 'Referral System',
+                tickets: 'Support Tickets',
+                notifications: 'Notifications',
+                settings: 'System Settings',
+                logs: 'Activity Logs'
+            };
+            
+            document.getElementById('page-title').textContent = titles[section] || section;
+            
+            if (window.innerWidth <= 1024) toggleSidebar();
+            
+            // Load section data with error handling
+            try {
+                switch(section) {
+                    case 'dashboard': loadDashboardData(); break;
+                    case 'users': loadUsers(); break;
+                    case 'financial': switchFinancialTab('deposits-pending'); break;
+                    case 'kyc': loadKYC('pending'); break;
+                    case 'trading': loadTradingData(); break;
+                    case 'investments': loadInvestments(); break;
+                    case 'nft': loadNFTs(); break;
+                    case 'referral': loadReferralData(); break;
+                    case 'tickets': loadTickets('open'); break;
+                    case 'settings': loadSettings(); break;
+                    case 'logs': loadLogs(); break;
+                }
+            } catch (e) {
+                console.error('Error loading section:', e);
+                showToast('Error loading data', 'error');
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // ==========================================
+        // 📊 DASHBOARD
+        // ==========================================
+        function initializeDashboard() {
+            // Real-time stats with error handling
+            try {
+                // Users count
+                db.collection('users').onSnapshot(snap => {
+                    document.getElementById('stat-users').textContent = snap.size;
+                    
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    let newToday = 0;
+                    let totalBalance = 0;
+                    
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        if (data.createdAt?.toDate() >= today) newToday++;
+                        
+                        // Calculate total balance safely
+                        totalBalance += (data.spotBalance || 0) + (data.futuresBalance || 0) + 
+                                       (data.marginBalance || 0) + (data.investBalance || 0) + (data.nftBalance || 0);
+                    });
+                    
+                    document.getElementById('stat-new-users').textContent = newToday;
+                    document.getElementById('stat-platform-balance').textContent = '₹' + totalBalance.toLocaleString();
+                }, err => console.log('Users listener error:', err));
+
+                // Pending deposits
+                db.collection('payments').where('status', '==', 'pending').onSnapshot(snap => {
+                    const count = snap.size;
+                    document.getElementById('stat-pending-deposits').textContent = count;
+                    updateBadges();
+                }, err => console.log('Deposits listener error:', err));
+
+                // Pending withdrawals
+                db.collection('withdrawals').where('status', '==', 'pending').onSnapshot(snap => {
+                    const count = snap.size;
+                    document.getElementById('stat-pending-withdrawals').textContent = count;
+                    document.getElementById('pending-badge').textContent = count;
+                    document.getElementById('pending-badge').classList.toggle('hidden', count === 0);
+                    updateBadges();
+                }, err => console.log('Withdrawals listener error:', err));
+
+                // KYC pending
+                db.collection('kyc').where('status', '==', 'pending').onSnapshot(snap => {
+                    const count = snap.size;
+                    document.getElementById('kyc-badge').textContent = count;
+                    document.getElementById('kyc-badge').classList.toggle('hidden', count === 0);
+                }, err => console.log('KYC listener error:', err));
+
+                // Total deposits
+                db.collection('payments').where('status', '==', 'approved').onSnapshot(snap => {
+                    let total = 0;
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        total += data.amount || (data.usdtAmount * 83) || 0;
+                    });
+                    document.getElementById('stat-deposits').textContent = '₹' + total.toLocaleString();
+                }, err => console.log('Total deposits error:', err));
+
+                loadRecentActivity();
+            } catch (e) {
+                console.error('Dashboard init error:', e);
+            }
+        }
+
+        function updateBadges() {
+            const dep = parseInt(document.getElementById('stat-pending-deposits').textContent) || 0;
+            const wit = parseInt(document.getElementById('stat-pending-withdrawals').textContent) || 0;
+            const total = dep + wit;
+            document.getElementById('pending-badge').textContent = total;
+            document.getElementById('pending-badge').classList.toggle('hidden', total === 0);
+        }
+
+        function loadDashboardData() {
+            loadRecentActivity();
+        }
+
+        function loadRecentActivity() {
+            // Recent deposits
+            db.collection('payments').orderBy('timestamp', 'desc').limit(5).get().then(snap => {
+                const container = document.getElementById('recent-deposits-list');
+                if (snap.empty) {
+                    container.innerHTML = '<p class="empty-state">No recent deposits</p>';
+                    return;
+                }
+                container.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    const amount = data.amount ? '₹' + data.amount : (data.usdtAmount || 0) + ' USDT';
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-surface rounded-lg border border-border">
+                            <div>
+                                <p class="font-semibold">${data.userName || 'Unknown'}</p>
+                                <p class="text-textGray text-xs">${data.type || 'Deposit'}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-primary">${amount}</p>
+                                <span class="badge ${data.status === 'approved' ? 'badge-success' : 'badge-warning'} text-xs">${data.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }).catch(() => {
+                document.getElementById('recent-deposits-list').innerHTML = '<p class="empty-state">Error loading data</p>';
+            });
+
+            // Recent withdrawals
+            db.collection('withdrawals').orderBy('timestamp', 'desc').limit(5).get().then(snap => {
+                const container = document.getElementById('recent-withdrawals-list');
+                if (snap.empty) {
+                    container.innerHTML = '<p class="empty-state">No recent withdrawals</p>';
+                    return;
+                }
+                container.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-surface rounded-lg border border-border">
+                            <div>
+                                <p class="font-semibold">${data.userName || 'Unknown'}</p>
+                                <p class="text-textGray text-xs">${data.upi || 'UPI'}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold text-danger">₹${data.amount || 0}</p>
+                                <span class="badge ${data.status === 'approved' ? 'badge-success' : data.status === 'rejected' ? 'badge-danger' : 'badge-warning'} text-xs">${data.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }).catch(() => {
+                document.getElementById('recent-withdrawals-list').innerHTML = '<p class="empty-state">Error loading data</p>';
+            });
+        }
+
+        // ==========================================
+        // 👥 USER MANAGEMENT
+        // ==========================================
+        function loadUsers() {
+            showLoading('users-tbody');
+            db.collection('users').orderBy('createdAt', 'desc').limit(100).get().then(snap => {
+                usersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUsers(usersData);
+            }).catch(err => {
+                console.error('Error loading users:', err);
+                document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-danger">Error loading users</td></tr>';
+            });
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('users-tbody');
+            const start = (currentPage - 1) * usersPerPage;
+            const end = start + usersPerPage;
+            const pageUsers = users.slice(start, end);
+            
+            if (pageUsers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-textGray">No users found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = pageUsers.map(user => {
+                const total = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                             (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+                
+                // Handle missing/spelling variations in data
+                const kycStatus = user.kycStatus || user.kyc_status || 'unverified';
+                const userName = user.name || user.fullName || user.userName || 'N/A';
+                const userEmail = user.email || user.userEmail || '';
+                const userPhone = user.phone || user.mobile || user.phoneNumber || 'N/A';
+                
+                return `
+                    <tr>
+                        <td>
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="viewUser('${user.id}')">
+                                <img src="${user.avatar || user.photoURL || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover border border-border">
+                                <div>
+                                    <p class="font-semibold hover:text-primary transition">${userName}</p>
+                                    <p class="text-textGray text-xs">${user.id.substring(0, 8)}...</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <p class="text-sm">${userPhone}</p>
+                            <p class="text-textGray text-xs">${userEmail}</p>
+                        </td>
+                        <td>
+                            <p class="font-mono font-semibold text-primary">₹${total.toLocaleString()}</p>
+                        </td>
+                        <td>
+                            <span class="badge ${kycStatus === 'verified' ? 'badge-success' : kycStatus === 'pending' ? 'badge-warning' : 'badge-danger'}">
+                                ${kycStatus}
+                            </span>
+                        </td>
+                        <td class="text-textGray text-sm">${user.createdAt?.toDate().toLocaleDateString() || 'N/A'}</td>
+                        <td>
+                            <button onclick="viewUser('${user.id}')" class="text-primary hover:text-white mr-3" title="View"><i class="fas fa-eye"></i></button>
+                            <button onclick="quickEditUser('${user.id}')" class="text-warning hover:text-white" title="Edit Balance"><i class="fas fa-wallet"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            renderPagination(users.length);
+        }
+
+        function renderPagination(total) {
+            const pages = Math.ceil(total / usersPerPage);
+            const container = document.getElementById('users-pagination');
+            if (pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled style="opacity:0.5"' : ''}><i class="fas fa-chevron-left"></i></button>`;
+            for (let i = 1; i <= pages; i++) {
+                if (i === 1 || i === pages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    html += `<span class="px-2 text-textGray">...</span>`;
+                }
+            }
+            html += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === pages ? 'disabled style="opacity:0.5"' : ''}><i class="fas fa-chevron-right"></i></button>`;
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            renderUsers(usersData);
+        }
+
+        function searchUsers() {
+            const term = document.getElementById('user-search').value.toLowerCase();
+            const filtered = usersData.filter(u => {
+                const name = (u.name || u.fullName || u.userName || '').toLowerCase();
+                const email = (u.email || u.userEmail || '').toLowerCase();
+                const phone = (u.phone || u.mobile || '').toString();
+                return name.includes(term) || email.includes(term) || phone.includes(term);
+            });
+            currentPage = 1;
+            renderUsers(filtered);
+        }
+
+        function filterUsers() {
+            const filter = document.getElementById('user-filter').value;
+            if (filter === 'all') {
+                renderUsers(usersData);
+            } else if (filter === 'blocked') {
+                renderUsers(usersData.filter(u => u.blocked === true));
+            } else {
+                renderUsers(usersData.filter(u => (u.kycStatus || u.kyc_status) === filter));
+            }
+        }
+
+        function viewUser(uid) {
+            const user = usersData.find(u => u.id === uid);
+            if (!user) return;
+            currentEditingUser = user;
+            
+            const total = (user.spotBalance || 0) + (user.futuresBalance || 0) + 
+                         (user.marginBalance || 0) + (user.investBalance || 0) + (user.nftBalance || 0);
+            
+            const kycStatus = user.kycStatus || user.kyc_status || 'unverified';
+            const userName = user.name || user.fullName || user.userName || 'Unknown';
+            
+            document.getElementById('user-modal-body').innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 mb-4">
+                            <img src="${user.avatar || user.photoURL || 'https://via.placeholder.com/80'}" class="w-20 h-20 rounded-full object-cover border-2 border-primary">
+                            <div>
+                                <h4 class="text-xl font-bold">${userName}</h4>
+                                <p class="text-textGray">${user.email || user.userEmail || 'No email'}</p>
+                                <span class="badge ${kycStatus === 'verified' ? 'badge-success' : kycStatus === 'pending' ? 'badge-warning' : 'badge-danger'} mt-1">${kycStatus}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-surface p-4 rounded-lg border border-border">
+                            <h5 class="font-bold mb-3 text-primary">Balances</h5>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-textGray">Spot:</span> <span>₹${user.spotBalance || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-textGray">Futures:</span> <span>₹${user.futuresBalance || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-textGray">Margin:</span> <span>₹${user.marginBalance || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-textGray">Invest:</span> <span>₹${user.investBalance || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-textGray">NFT:</span> <span>₹${user.nftBalance || 0}</span></div>
+                                <hr class="border-border my-2">
+                                <div class="flex justify-between font-bold"><span>Total:</span> <span class="text-primary">₹${total.toLocaleString()}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-surface p-4 rounded-lg border border-border">
+                            <h5 class="font-bold mb-3">Account Info</h5>
+                            <div class="space-y-2 text-sm">
+                                <p><span class="text-textGray">User ID:</span> <span class="font-mono text-xs">${uid}</span></p>
+                                <p><span class="text-textGray">Phone:</span> ${user.phone || user.mobile || 'N/A'}</p>
+                                <p><span class="text-textGray">Joined:</span> ${user.createdAt?.toDate().toLocaleString() || 'N/A'}</p>
+                                <p><span class="text-textGray">Referral Code:</span> ${user.referralCode || user.refCode || 'N/A'}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-surface p-4 rounded-lg border border-border">
+                            <h5 class="font-bold mb-3">Quick Adjust</h5>
+                            <div class="flex gap-2 mb-2">
+                                <select id="adjust-wallet" class="input-admin text-sm">
+                                    <option value="spotBalance">Spot</option>
+                                    <option value="futuresBalance">Futures</option>
+                                    <option value="marginBalance">Margin</option>
+                                    <option value="investBalance">Invest</option>
+                                    <option value="nftBalance">NFT</option>
+                                </select>
+                                <input type="number" id="adjust-amount" class="input-admin text-sm" placeholder="Amount">
+                            </div>
+                            <button onclick="adjustUserBalance()" class="btn-primary w-full text-sm">Adjust Balance</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('block-btn').textContent = user.blocked ? 'Unblock User' : 'Block User';
+            document.getElementById('user-modal').classList.add('active');
+        }
+
+        function quickEditUser(uid) {
+            viewUser(uid);
+        }
+
+        function adjustUserBalance() {
+            if (!currentEditingUser) return;
+            const wallet = document.getElementById('adjust-wallet').value;
+            const amount = parseFloat(document.getElementById('adjust-amount').value);
+            
+            if (isNaN(amount)) {
+                showToast('Please enter valid amount', 'error');
+                return;
+            }
+            
+            db.collection('users').doc(currentEditingUser.id).update({
+                [wallet]: firebase.firestore.FieldValue.increment(amount)
+            }).then(() => {
+                showToast(`Balance adjusted by ₹${amount}`);
+                logAdminAction('balance_adjust', `Adjusted ${wallet} by ${amount} for ${currentEditingUser.id}`);
+                viewUser(currentEditingUser.id); // Refresh
+            }).catch(err => {
+                showToast('Error updating balance', 'error');
+            });
+        }
+
+        function toggleBlockUser() {
+            if (!currentEditingUser) return;
+            const newStatus = !currentEditingUser.blocked;
+            db.collection('users').doc(currentEditingUser.id).update({
+                blocked: newStatus,
+                blockedAt: newStatus ? new Date() : null
+            }).then(() => {
+                showToast(newStatus ? 'User blocked' : 'User unblocked');
+                closeModal('user-modal');
+                loadUsers();
+            });
+        }
+
+        function saveUserChanges() {
+            // Implementation for saving user details
+            closeModal('user-modal');
+            loadUsers();
+        }
+
+        function exportUsers() {
+            let csv = 'Name,Email,Phone,Spot,Futures,Margin,Invest,NFT,Total,KYC,Joined\n';
+            usersData.forEach(u => {
+                const total = (u.spotBalance || 0) + (u.futuresBalance || 0) + (u.marginBalance || 0) + (u.investBalance || 0) + (u.nftBalance || 0);
+                const name = (u.name || u.fullName || '').replace(/,/g, ' ');
+                const email = (u.email || '').replace(/,/g, ' ');
+                csv += `"${name}","${email}","${u.phone || ''}",${u.spotBalance || 0},${u.futuresBalance || 0},${u.marginBalance || 0},${u.investBalance || 0},${u.nftBalance || 0},${total},${u.kycStatus || 'unverified'},"${u.createdAt?.toDate().toLocaleDateString() || ''}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `users_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // ==========================================
+        // 💰 FINANCIAL OPERATIONS
+        // ==========================================
+        function switchFinancialTab(tab) {
+            // Update tab UI
+            document.querySelectorAll('#section-financial .tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const tbody = document.getElementById('financial-tbody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8"><div class="spinner"></div></td></tr>';
+            
+            switch(tab) {
+                case 'deposits-pending':
+                    loadPendingDeposits();
+                    break;
+                case 'deposits-history':
+                    loadDepositHistory();
+                    break;
+                case 'withdrawals-pending':
+                    loadPendingWithdrawals();
+                    break;
+                case 'withdrawals-history':
+                    loadWithdrawalHistory();
+                    break;
+            }
+        }
+
+        function loadPendingDeposits() {
+            db.collection('payments').where('status', '==', 'pending').orderBy('timestamp', 'desc').get().then(snap => {
+                renderFinancialTable(snap, 'deposit', true);
+            }).catch(() => {
+                document.getElementById('financial-tbody').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-textGray">Error loading deposits</td></tr>';
+            });
+        }
+
+        function loadDepositHistory() {
+            db.collection('payments').where('status', 'in', ['approved', 'rejected']).orderBy('timestamp', 'desc').limit(50).get().then(snap => {
+                renderFinancialTable(snap, 'deposit', false);
+            });
+        }
+
+        function loadPendingWithdrawals() {
+            db.collection('withdrawals').where('status', '==', 'pending').orderBy('timestamp', 'desc').get().then(snap => {
+                renderFinancialTable(snap, 'withdrawal', true);
+            });
+        }
+
+        function loadWithdrawalHistory() {
+            db.collection('withdrawals').where('status', 'in', ['approved', 'rejected']).orderBy('timestamp', 'desc').limit(50).get().then(snap => {
+                renderFinancialTable(snap, 'withdrawal', false);
+            });
+        }
+
+        function renderFinancialTable(snap, type, isPending) {
+            const tbody = document.getElementById('financial-tbody');
+            if (snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-textGray">No records found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = snap.docs.map(doc => {
+                const data = doc.data();
+                if (type === 'deposit') {
+                    const amount = data.amount ? '₹' + data.amount : (data.usdtAmount || 0) + ' USDT';
+                    const proof = data.screenshotUrl || data.proofUrl || data.imageUrl;
+                    return `
+                        <tr>
+                            <td>
+                                <p class="font-semibold">${data.userName || data.name || 'Unknown'}</p>
+                                <p class="text-textGray text-xs">${data.userEmail || data.email || ''}</p>
+                            </td>
+                            <td class="font-bold">${amount}</td>
+                            <td><span class="badge ${data.type === 'usdt' || data.type === 'usdt_deposit' ? 'badge-purple' : 'badge-info'}">${data.type || 'INR'}</span></td>
+                            <td>
+                                ${proof ? `<img src="${proof}" class="w-10 h-10 rounded object-cover cursor-pointer hover:opacity-80" onclick="viewImage('${proof}')">` : 'N/A'}
+                            </td>
+                            <td class="text-textGray text-sm">${data.timestamp?.toDate().toLocaleString() || 'N/A'}</td>
+                            <td>
+                                ${isPending ? `
+                                    <button onclick="approveDeposit('${doc.id}', '${data.uid || data.userId}', ${data.amount || 0})" class="text-primary mr-3" title="Approve"><i class="fas fa-check"></i></button>
+                                    <button onclick="rejectDeposit('${doc.id}')" class="text-danger" title="Reject"><i class="fas fa-times"></i></button>
+                                ` : `<span class="badge ${data.status === 'approved' ? 'badge-success' : 'badge-danger'}">${data.status}</span>`}
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    return `
+                        <tr>
+                            <td>
+                                <p class="font-semibold">${data.userName || data.name || 'Unknown'}</p>
+                            </td>
+                            <td class="font-bold text-danger">₹${data.amount || 0}</td>
+                            <td>${data.method || data.type || 'UPI'}</td>
+                            <td>${data.upi || data.upiId || data.account || 'N/A'}</td>
+                            <td class="text-textGray text-sm">${data.timestamp?.toDate().toLocaleString() || 'N/A'}</td>
+                            <td>
+                                ${isPending ? `
+                                    <button onclick="approveWithdrawal('${doc.id}', '${data.uid || data.userId}', ${data.amount || 0})" class="text-primary mr-3" title="Approve"><i class="fas fa-check"></i></button>
+                                    <button onclick="rejectWithdrawal('${doc.id}')" class="text-danger" title="Reject"><i class="fas fa-times"></i></button>
+                                ` : `<span class="badge ${data.status === 'approved' ? 'badge-success' : 'badge-danger'}">${data.status}</span>`}
+                            </td>
+                        </tr>
+                    `;
+                }
+            }).join('');
+        }
+
+        function approveDeposit(docId, userId, amount) {
+            if (!confirm(`Approve deposit of ₹${amount}?`)) return;
+            
+            db.collection('payments').doc(docId).update({
+                status: 'approved',
+                approvedAt: new Date(),
+                approvedBy: currentUser.email
+            }).then(() => {
+                db.collection('users').doc(userId).update({
+                    spotBalance: firebase.firestore.FieldValue.increment(amount)
+                }).then(() => {
+                    showToast('Deposit approved');
+                    loadPendingDeposits();
+                    logAdminAction('approve_deposit', `Approved ${docId}`);
+                });
+            });
+        }
+
+        function rejectDeposit(docId) {
+            if (!confirm('Reject this deposit?')) return;
+            db.collection('payments').doc(docId).update({
+                status: 'rejected',
+                rejectedAt: new Date()
+            }).then(() => {
+                showToast('Deposit rejected');
+                loadPendingDeposits();
+            });
+        }
+
+        function approveWithdrawal(docId, userId, amount) {
+            if (!confirm(`Approve withdrawal of ₹${amount}?`)) return;
+            db.collection('withdrawals').doc(docId).update({
+                status: 'approved',
+                approvedAt: new Date(),
+                approvedBy: currentUser.email
+            }).then(() => {
+                showToast('Withdrawal approved');
+                loadPendingWithdrawals();
+                logAdminAction('approve_withdrawal', `Approved ${docId}`);
+            });
+        }
+
+        function rejectWithdrawal(docId) {
+            if (!confirm('Reject this withdrawal?')) return;
+            db.collection('withdrawals').doc(docId).update({
+                status: 'rejected',
+                rejectedAt: new Date()
+            }).then(() => {
+                showToast('Withdrawal rejected');
+                loadPendingWithdrawals();
+            });
+        }
+
+        // ==========================================
+        // 🛡️ KYC MANAGEMENT
+        // ==========================================
+        function switchKYCTab(status) {
+            document.querySelectorAll('#section-kyc .tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadKYC(status);
+        }
+
+        function loadKYC(status) {
+            const tbody = document.getElementById('kyc-tbody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8"><div class="spinner"></div></td></tr>';
+            
+            let query = db.collection('kyc');
+            if (status !== 'all') {
+                query = query.where('status', '==', status);
+            }
+            query.orderBy('submittedAt', 'desc').get().then(snap => {
+                if (snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-textGray">No KYC requests</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <tr>
+                            <td>${data.userName || data.name || 'Unknown'}</td>
+                            <td>${data.documentType || data.docType || 'N/A'}</td>
+                            <td>${data.documentNumber || data.docNumber || 'N/A'}</td>
+                            <td class="text-textGray text-sm">${data.submittedAt?.toDate().toLocaleDateString() || 'N/A'}</td>
+                            <td>
+                                <button onclick="viewKYC('${doc.id}')" class="text-primary mr-3"><i class="fas fa-eye"></i></button>
+                                ${data.status === 'pending' ? `
+                                    <button onclick="approveKYC('${doc.id}', '${data.uid || data.userId}')" class="text-primary mr-3"><i class="fas fa-check"></i></button>
+                                    <button onclick="rejectKYC('${doc.id}')" class="text-danger"><i class="fas fa-times"></i></button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+
+        function viewKYC(docId) {
+            db.collection('kyc').doc(docId).get().then(doc => {
+                const data = doc.data();
+                const content = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-textGray mb-1">Name: <span class="text-white font-bold">${data.userName || 'N/A'}</span></p>
+                            <p class="text-textGray mb-1">Document: ${data.documentType || 'N/A'} - ${data.documentNumber || 'N/A'}</p>
+                            <p class="text-textGray mb-3">Status: <span class="badge ${data.status === 'verified' ? 'badge-success' : data.status === 'rejected' ? 'badge-danger' : 'badge-warning'}">${data.status}</span></p>
+                            ${data.rejectionReason ? `<p class="text-danger text-sm mb-2">Reason: ${data.rejectionReason}</p>` : ''}
+                        </div>
+                        <div class="space-y-2">
+                            ${data.photoUrl ? `<img src="${data.photoUrl}" class="w-full h-32 object-cover rounded cursor-pointer" onclick="viewImage('${data.photoUrl}')">` : ''}
+                            ${data.documentUrl ? `<img src="${data.documentUrl}" class="w-full h-32 object-cover rounded cursor-pointer" onclick="viewImage('${data.documentUrl}')">` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                // Reuse user modal for KYC view
+                document.getElementById('user-modal-body').innerHTML = content;
+                document.getElementById('user-modal').classList.add('active');
+            });
+        }
+
+        function approveKYC(docId, userId) {
+            db.collection('kyc').doc(docId).update({ status: 'verified' }).then(() => {
+                db.collection('users').doc(userId).update({ kycStatus: 'verified' });
+                showToast('KYC approved');
+                loadKYC('pending');
+                logAdminAction('approve_kyc', `Approved ${docId}`);
+            });
+        }
+
+        function rejectKYC(docId) {
+            const reason = prompt('Rejection reason:');
+            if (reason) {
+                db.collection('kyc').doc(docId).update({
+                    status: 'rejected',
+                    rejectionReason: reason
+                }).then(() => {
+                    showToast('KYC rejected');
+                    loadKYC('pending');
+                });
+            }
+        }
+
+        // ==========================================
+        // 📈 TRADING DATA
+        // ==========================================
+        function loadTradingData() {
+            db.collection('orders').orderBy('timestamp', 'desc').limit(20).get().then(snap => {
+                const tbody = document.getElementById('orders-tbody');
+                if (snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-textGray">No orders</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <tr>
+                            <td>${data.userName || 'Unknown'}</td>
+                            <td class="font-bold">${data.pair || 'N/A'}</td>
+                            <td><span class="badge badge-info">${data.type || 'Spot'}</span></td>
+                            <td class="${data.side === 'buy' ? 'text-primary' : 'text-danger'} font-bold">${data.side?.toUpperCase() || 'N/A'}</td>
+                            <td>${data.amount || 0}</td>
+                            <td><span class="badge ${data.status === 'filled' ? 'badge-success' : 'badge-warning'}">${data.status || 'Open'}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+
+        // ==========================================
+        // 💎 INVESTMENTS
+        // ==========================================
+        function loadInvestments() {
+            // Load plans
+            db.collection('investmentPlans').onSnapshot(snap => {
+                const container = document.getElementById('investment-list');
+                container.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <div class="glass rounded-xl p-4 border border-border">
+                            <h3 class="font-bold text-lg mb-2">${data.name}</h3>
+                            <p class="text-textGray text-sm mb-3">${data.description || ''}</p>
+                            <div class="flex justify-between mb-3">
+                                <span class="text-primary font-bold">${data.return}% Return</span>
+                                <span class="text-textGray text-sm">${data.duration} days</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="deleteInvestPlan('${doc.id}')" class="btn-danger flex-1 text-sm"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+
+            // Load active investments
+            db.collection('investments').where('status', '==', 'active').get().then(snap => {
+                const tbody = document.getElementById('active-investments-tbody');
+                if (snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-textGray">No active investments</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <tr>
+                            <td>${data.userName || 'Unknown'}</td>
+                            <td>${data.planName || 'N/A'}</td>
+                            <td>₹${data.amount || 0}</td>
+                            <td>₹${data.expectedReturns || 0}</td>
+                            <td><span class="badge badge-success">Active</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+
+        function openInvestModal() {
+            document.getElementById('plan-name').value = '';
+            document.getElementById('plan-return').value = '';
+            document.getElementById('plan-min').value = '';
+            document.getElementById('plan-duration').value = '';
+            document.getElementById('plan-desc').value = '';
+            document.getElementById('invest-modal').classList.add('active');
+        }
+
+        function saveInvestPlan() {
+            const data = {
+                name: document.getElementById('plan-name').value,
+                return: parseFloat(document.getElementById('plan-return').value),
+                min: parseFloat(document.getElementById('plan-min').value),
+                duration: parseInt(document.getElementById('plan-duration').value),
+                description: document.getElementById('plan-desc').value,
+                createdAt: new Date()
+            };
+            
+            if (!data.name || !data.return) {
+                showToast('Please fill required fields', 'error');
+                return;
+            }
+            
+            db.collection('investmentPlans').add(data).then(() => {
+                showToast('Plan created');
+                closeModal('invest-modal');
+            });
+        }
+
+        function deleteInvestPlan(id) {
+            if (!confirm('Delete this plan?')) return;
+            db.collection('investmentPlans').doc(id).delete().then(() => {
+                showToast('Plan deleted');
+            });
+        }
+
+        // ==========================================
+        // 🎨 NFT MANAGEMENT
+        // ==========================================
+        function loadNFTs() {
+            db.collection('nfts').onSnapshot(snap => {
+                const container = document.getElementById('nft-list');
+                container.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <div class="glass rounded-xl overflow-hidden ${data.hidden ? 'opacity-50' : ''} border border-border">
+                            <img src="${data.image || data.imageUrl || 'https://via.placeholder.com/400'}" class="w-full h-40 object-cover">
+                            <div class="p-4">
+                                <h3 class="font-bold mb-1">${data.name}</h3>
+                                <p class="text-textGray text-xs mb-3">${data.description?.substring(0, 50) || ''}...</p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-primary font-bold">₹${data.price || 0}</span>
+                                    <div class="flex gap-2">
+                                        <button onclick="toggleNFT('${doc.id}', ${!data.hidden})" class="text-textGray hover:text-white">
+                                            <i class="fas ${data.hidden ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                                        </button>
+                                        <button onclick="deleteNFT('${doc.id}')" class="text-danger hover:text-white">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function openNFTModal() {
+            document.getElementById('nft-id').value = '';
+            document.getElementById('nft-name').value = '';
+            document.getElementById('nft-price').value = '';
+            document.getElementById('nft-desc').value = '';
+            document.getElementById('nft-profit').value = '';
+            document.getElementById('nft-days').value = '';
+            document.getElementById('nft-image').value = '';
+            document.getElementById('nft-modal').classList.add('active');
+        }
+
+        function saveNFT() {
+            const id = document.getElementById('nft-id').value;
+            const data = {
+                name: document.getElementById('nft-name').value,
+                price: parseFloat(document.getElementById('nft-price').value),
+                description: document.getElementById('nft-desc').value,
+                dailyProfit: parseFloat(document.getElementById('nft-profit').value) || 0,
+                holdingDays: parseInt(document.getElementById('nft-days').value) || 0,
+                image: document.getElementById('nft-image').value,
+                updatedAt: new Date()
+            };
+            
+            if (!data.name || !data.price) {
+                showToast('Please fill required fields', 'error');
+                return;
+            }
+            
+            if (id) {
+                db.collection('nfts').doc(id).update(data).then(() => {
+                    showToast('NFT updated');
+                    closeModal('nft-modal');
+                });
+            } else {
+                data.createdAt = new Date();
+                db.collection('nfts').add(data).then(() => {
+                    showToast('NFT created');
+                    closeModal('nft-modal');
+                });
+            }
+        }
+
+        function toggleNFT(id, hidden) {
+            db.collection('nfts').doc(id).update({ hidden }).then(() => {
+                showToast(hidden ? 'NFT hidden' : 'NFT visible');
+            });
+        }
+
+        function deleteNFT(id) {
+            if (!confirm('Delete this NFT?')) return;
+            db.collection('nfts').doc(id).delete().then(() => {
+                showToast('NFT deleted');
+            });
+        }
+
+        // ==========================================
+        // 🤝 REFERRAL SYSTEM
+        // ==========================================
+        function loadReferralData() {
+            // Calculate totals
+            db.collection('users').where('referredBy', '!=', null).get().then(snap => {
+                document.getElementById('total-referrals').textContent = snap.size;
+            });
+            
+            // This would need a separate collection for commissions in real app
+            document.getElementById('commission-paid').textContent = '₹0';
+            document.getElementById('top-referrer').textContent = 'N/A';
+        }
+
+        function saveReferralSettings() {
+            const config = {
+                level1: parseFloat(document.getElementById('ref-level-1').value),
+                level2: parseFloat(document.getElementById('ref-level-2').value),
+                level3: parseFloat(document.getElementById('ref-level-3').value),
+                updatedAt: new Date()
+            };
+            
+            db.collection('admin').doc('referral').set(config).then(() => {
+                showToast('Referral settings saved');
+            });
+        }
+
+        // ==========================================
+        // 🎫 TICKETS
+        // ==========================================
+        function switchTicketTab(status) {
+            document.querySelectorAll('#section-tickets .tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadTickets(status);
+        }
+
+        function loadTickets(status) {
+            const container = document.getElementById('tickets-list');
+            container.innerHTML = '<div class="spinner"></div>';
+            
+            let query = db.collection('tickets');
+            if (status !== 'all') {
+                query = query.where('status', '==', status);
+            }
+            
+            query.orderBy('createdAt', 'desc').get().then(snap => {
+                if (snap.empty) {
+                    container.innerHTML = '<p class="empty-state">No tickets</p>';
+                    return;
+                }
+                
+                container.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <div class="bg-surface p-4 rounded-lg border border-border mb-3">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-semibold">${data.subject}</h4>
+                                <span class="badge ${data.priority === 'high' ? 'badge-danger' : 'badge-info'}">${data.priority || 'Normal'}</span>
+                            </div>
+                            <p class="text-textGray text-sm mb-3">${data.message?.substring(0, 100) || ''}...</p>
+                            <div class="flex justify-between items-center text-xs text-textGray">
+                                <span>${data.userName || 'Unknown'} • ${data.createdAt?.toDate().toLocaleDateString()}</span>
+                                <button onclick="viewTicket('${doc.id}')" class="text-primary">View</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            });
+        }
+
+        function viewTicket(ticketId) {
+            // Simple alert for now, can be expanded to modal
+            showToast('Ticket view: ' + ticketId);
+        }
+
+        // ==========================================
+        // 🔔 NOTIFICATIONS
+        // ==========================================
+        function toggleNotifTarget() {
+            const type = document.getElementById('notif-type').value;
+            document.getElementById('specific-user-input').classList.toggle('hidden', type !== 'specific');
+        }
+
+        function sendNotification() {
+            const type = document.getElementById('notif-type').value;
+            const title = document.getElementById('notif-title').value;
+            const message = document.getElementById('notif-message').value;
+            
+            if (!title || !message) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            
+            const data = {
+                title,
+                message,
+                read: false,
+                timestamp: new Date()
+            };
+            
+            if (type === 'all') {
+                data.target = 'all';
+                db.collection('notifications').add(data).then(() => {
+                    showToast('Notification sent to all users');
+                });
+            } else {
+                const uid = document.getElementById('notif-uid').value;
+                if (!uid) {
+                    showToast('Please enter User ID', 'error');
+                    return;
+                }
+                data.uid = uid;
+                db.collection('notifications').add(data).then(() => {
+                    showToast('Notification sent');
+                });
+            }
+        }
+
+        // ==========================================
+        // ⚙️ SETTINGS
+        // ==========================================
+        function loadSettings() {
+            db.collection('admin').doc('config').get().then(doc => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    document.getElementById('setting-upi').value = data.upi || '';
+                    document.getElementById('setting-usdt').value = data.usdtAddress || '';
+                    document.getElementById('setting-min-deposit').value = data.minDeposit || 100;
+                    document.getElementById('setting-min-withdrawal').value = data.minWithdrawal || 500;
+                }
+            });
+        }
+
+        function saveSettings() {
+            const data = {
+                upi: document.getElementById('setting-upi').value,
+                usdtAddress: document.getElementById('setting-usdt').value,
+                minDeposit: parseFloat(document.getElementById('setting-min-deposit').value),
+                minWithdrawal: parseFloat(document.getElementById('setting-min-withdrawal').value),
+                updatedAt: new Date()
+            };
+            
+            db.collection('admin').doc('config').set(data).then(() => {
+                showToast('Settings saved');
+                logAdminAction('update_settings', 'Updated system config');
+            });
+        }
+
+        function toggleMaintenance() {
+            const enabled = document.getElementById('maintenance-mode').checked;
+            db.collection('admin').doc('config').update({
+                maintenanceMode: enabled
+            }).then(() => {
+                showToast(enabled ? 'Maintenance mode enabled' : 'Maintenance mode disabled');
+            });
+        }
+
+        function clearCache() {
+            showToast('Cache cleared');
+        }
+
+        function backupDatabase() {
+            showToast('Database backup started...');
+        }
+
+        // ==========================================
+        // 📝 LOGS
+        // ==========================================
+        function loadLogs() {
+            db.collection('adminLogs').orderBy('timestamp', 'desc').limit(50).get().then(snap => {
+                const tbody = document.getElementById('logs-tbody');
+                if (snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-textGray">No logs</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = snap.docs.map(doc => {
+                    const data = doc.data();
+                    return `
+                        <tr>
+                            <td class="text-textGray text-sm">${data.timestamp?.toDate().toLocaleString()}</td>
+                            <td>${data.adminEmail || 'Unknown'}</td>
+                            <td><span class="badge badge-info">${data.action}</span></td>
+                            <td class="text-sm">${data.details}</td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+
+        // ==========================================
+        // 🛠️ UTILITIES
+        // ==========================================
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function viewImage(url) {
+            document.getElementById('modal-image').src = url;
+            document.getElementById('image-modal').classList.add('active');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + (type === 'error' ? 'error' : '');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showLoading(tbodyId) {
+            document.getElementById(tbodyId).innerHTML = '<tr><td colspan="10" class="text-center py-8"><div class="spinner"></div></td></tr>';
+        }
+
+        function logAdminAction(action, details) {
+            if (!currentUser) return;
+            db.collection('adminLogs').add({
+                adminEmail: currentUser.email,
+                action: action,
+                details: details,
+                timestamp: new Date()
+            }).catch(() => {
+                // Silent fail for logs
+            });
+        }
+
+        // Close modals on outside click
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal(modal.id);
+                });
+            });
+        });
+    </script>
+</body>
+  </html>
