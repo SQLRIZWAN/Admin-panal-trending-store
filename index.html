@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Trending Store — Admin</title>
+<meta name="theme-color" content="#0b0e11">
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0b0e11;--surf:#151a21;--card:#1e2329;--brd:#2b3139;--grn:#00c853;--red:#ff3d00;--yel:#ffd600;--txt:#eaecef;--txt2:#848e9c;--fn:'Inter',sans-serif;--mono:'JetBrains Mono',monospace}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--fn);font-size:14px}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
+
+/* LAYOUT */
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#top-bar{background:var(--surf);border-bottom:1px solid var(--brd);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+#top-bar h1{font-size:16px;font-weight:700;color:var(--grn)}
+#top-bar .meta{font-size:11px;color:var(--txt2);text-align:right}
+#content{flex:1;overflow-y:auto;padding:12px;padding-bottom:80px}
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--brd);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--txt2);font-size:9px;font-weight:500;padding:4px 6px;border-radius:8px;cursor:pointer;transition:.2s;position:relative;min-width:44px}
+.nav-item.active{color:var(--grn)}
+.nav-item i{font-size:17px}
+.nav-badge{position:absolute;top:0;right:4px;background:var(--red);color:#fff;font-size:9px;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;font-weight:700}
+
+/* CARDS */
+.card{background:var(--surf);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:10px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.stat-card{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px;cursor:pointer}
+.stat-card .val{font-size:22px;font-weight:800;font-family:var(--mono)}
+.stat-card .lbl{font-size:10px;color:var(--txt2);margin-top:2px}
+.stat-card.pending .val{color:var(--yel)}
+.stat-card.green .val{color:var(--grn)}
+.stat-card.red .val{color:var(--red)}
+
+/* ROWS */
+.row{background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.row:active{background:var(--card)}
+.row-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.row-name{font-weight:600;font-size:13px}
+.row-meta{font-size:11px;color:var(--txt2);margin-top:2px}
+.row-amt{font-weight:700;font-family:var(--mono);font-size:14px;text-align:right}
+.row-sub{font-size:10px;color:var(--txt2);text-align:right}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase}
+.badge-pending{background:rgba(255,214,0,.15);color:var(--yel)}
+.badge-approved{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-rejected{background:rgba(255,61,0,.15);color:var(--red)}
+.badge-verified{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-unverified{background:rgba(132,142,156,.15);color:var(--txt2)}
+.badge-active{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-matured{background:rgba(255,214,0,.15);color:var(--yel)}
+.badge-cancelled{background:rgba(255,61,0,.15);color:var(--red)}
+.badge-open{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-filled{background:rgba(132,142,156,.15);color:var(--txt2)}
+.badge-sold{background:rgba(255,214,0,.15);color:var(--yel)}
+.badge-available{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-long{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-short{background:rgba(255,61,0,.15);color:var(--red)}
+.badge-open-s{background:rgba(0,200,83,.15);color:var(--grn)}
+.badge-liquidated{background:rgba(255,61,0,.15);color:var(--red)}
+
+/* TABS */
+.tabs{display:flex;gap:0;margin-bottom:12px;background:var(--surf);border:1px solid var(--brd);border-radius:10px;padding:3px;overflow-x:auto}
+.tab{flex:0 0 auto;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;color:var(--txt2);cursor:pointer;white-space:nowrap;transition:.2s}
+.tab.active{background:var(--grn);color:#000}
+
+/* SECTION TITLE */
+.sec-title{font-size:12px;color:var(--txt2);font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--brd)}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border:none;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;font-family:var(--fn);transition:.15s}
+.btn:active{transform:scale(.97)}
+.btn-grn{background:var(--grn);color:#000}
+.btn-red{background:var(--red);color:#fff}
+.btn-yel{background:var(--yel);color:#000}
+.btn-ghost{background:var(--card);border:1px solid var(--brd);color:var(--txt)}
+.btn-row{display:flex;gap:8px;margin-top:10px}
+
+/* DETAIL PANEL */
+#detail-panel{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column;overflow:hidden}
+#detail-panel.open{display:flex}
+#detail-header{background:var(--surf);border-bottom:1px solid var(--brd);padding:12px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+#detail-header h2{font-size:15px;font-weight:700;flex:1}
+#detail-body{flex:1;overflow-y:auto;padding:14px}
+.back-btn{background:none;border:none;color:var(--txt);font-size:18px;cursor:pointer;padding:4px}
+
+/* IMAGE MODAL */
+#img-modal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:999;display:none;align-items:center;justify-content:center;padding:20px}
+#img-modal.open{display:flex}
+#img-modal img{max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain}
+
+/* INPUT */
+.inp{width:100%;background:var(--card);border:1px solid var(--brd);color:var(--txt);padding:10px 12px;border-radius:8px;font-family:var(--fn);font-size:13px;outline:none;transition:.2s;margin-bottom:8px}
+.inp:focus{border-color:var(--grn)}
+.inp-label{font-size:11px;color:var(--txt2);margin-bottom:4px;font-weight:500}
+.inp-group{margin-bottom:12px}
+textarea.inp{resize:vertical;min-height:80px}
+select.inp{appearance:none}
+
+/* TOAST */
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--surf);border:1px solid var(--brd);color:var(--txt);padding:10px 20px;border-radius:20px;z-index:9999;font-size:13px;font-weight:500;transition:transform .3s;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--grn);color:var(--grn)}
+#toast.err{border-color:var(--red);color:var(--red)}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--txt2);font-size:13px}
+.empty i{font-size:36px;margin-bottom:10px;display:block}
+
+/* LOADING */
+.spinner{width:32px;height:32px;border:3px solid var(--brd);border-top-color:var(--grn);border-radius:50%;animation:spin .8s linear infinite;margin:30px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* INFO ROW */
+.info-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--brd);font-size:13px}
+.info-row:last-child{border:none}
+.info-key{color:var(--txt2)}
+.info-val{font-weight:600;font-family:var(--mono);font-size:12px;text-align:right;max-width:60%;word-break:break-all}
+
+/* SEARCH */
+.search-box{display:flex;gap:8px;margin-bottom:10px}
+.search-inp{flex:1;background:var(--surf);border:1px solid var(--brd);color:var(--txt);padding:9px 12px;border-radius:8px;font-family:var(--fn);font-size:13px;outline:none}
+.search-inp:focus{border-color:var(--grn)}
+
+/* NOTIFY MODAL */
+#notify-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:flex-end;justify-content:center}
+#notify-modal.open{display:flex}
+.notify-box{background:var(--surf);border:1px solid var(--brd);border-radius:16px 16px 0 0;width:100%;max-width:500px;padding:20px;max-height:70vh;overflow-y:auto}
+
+/* REJECTION INPUT */
+#reject-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+#reject-modal.open{display:flex}
+.reject-box{background:var(--surf);border:1px solid var(--brd);border-radius:14px;width:100%;max-width:360px;padding:20px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade{animation:fadeUp .25s ease-out}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="top-bar">
+    <h1><i class="fas fa-crown" style="color:#ffd600;margin-right:6px"></i>Trending Store Admin</h1>
+    <div class="meta" id="admin-meta">Loading...</div>
+  </div>
+  <div id="content"></div>
+  <div id="nav">
+    <div class="nav-item active" onclick="goTab('dash')"><i class="fas fa-chart-pie"></i>Dashboard</div>
+    <div class="nav-item" onclick="goTab('deposits')"><i class="fas fa-arrow-down-to-line"></i>Deposits<span class="nav-badge" id="badge-dep" style="display:none">0</span></div>
+    <div class="nav-item" onclick="goTab('withdrawals')"><i class="fas fa-arrow-up-from-line"></i>Withdrawals<span class="nav-badge" id="badge-wit" style="display:none">0</span></div>
+    <div class="nav-item" onclick="goTab('kyc')"><i class="fas fa-id-card"></i>KYC<span class="nav-badge" id="badge-kyc" style="display:none">0</span></div>
+    <div class="nav-item" onclick="goTab('users')"><i class="fas fa-users"></i>Users</div>
+    <div class="nav-item" onclick="goTab('more')"><i class="fas fa-ellipsis"></i>More</div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <div id="detail-header">
+    <button class="back-btn" onclick="closeDetail()"><i class="fas fa-arrow-left"></i></button>
+    <h2 id="detail-title">Detail</h2>
+    <div id="detail-actions"></div>
+  </div>
+  <div id="detail-body"></div>
+</div>
+
+<!-- IMAGE MODAL -->
+<div id="img-modal" onclick="closeImg()">
+  <img id="img-modal-img" src="" alt="Preview">
+</div>
+
+<!-- NOTIFY MODAL -->
+<div id="notify-modal">
+  <div class="notify-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <strong id="notify-modal-title">Send Notification</strong>
+      <button class="back-btn" onclick="closeNotifyModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="inp-group"><div class="inp-label">Title</div><input class="inp" id="notif-title" placeholder="Title"></div>
+    <div class="inp-group"><div class="inp-label">Message</div><textarea class="inp" id="notif-msg" placeholder="Message..."></textarea></div>
+    <div class="inp-group"><div class="inp-label">Type</div>
+      <select class="inp" id="notif-type">
+        <option value="info">Info</option>
+        <option value="success">Success</option>
+        <option value="warning">Warning</option>
+        <option value="deposit">Deposit</option>
+        <option value="withdrawal">Withdrawal</option>
+        <option value="kyc">KYC</option>
+      </select>
+    </div>
+    <button class="btn btn-grn" style="width:100%" onclick="sendNotification()">Send Notification</button>
+  </div>
+</div>
+
+<!-- REJECT MODAL -->
+<div id="reject-modal">
+  <div class="reject-box">
+    <strong id="reject-title" style="display:block;margin-bottom:12px">Reject — Add Reason</strong>
+    <div class="inp-label">Reason (optional)</div>
+    <textarea class="inp" id="reject-reason" placeholder="e.g. Documents not clear..."></textarea>
+    <div class="btn-row">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeRejectModal()">Cancel</button>
+      <button class="btn btn-red" style="flex:1" onclick="confirmReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── FIREBASE ───────────────────────────────────
+firebase.initializeApp({
+  apiKey:"AIzaSyAozV8jcau0GuIKBPCMFAbChm75O9VE1Rs",
+  authDomain:"treding-store-2.firebaseapp.com",
+  projectId:"treding-store-2",
+  storageBucket:"treding-store-2.firebasestorage.app",
+  messagingSenderId:"2938541914",
+  appId:"1:2938541914:web:7fe53d76a34ec044c90563"
+});
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ─── STATE ───────────────────────────────────────
+const S = {
+  tab: 'dash',
+  admin: null,
+  depFilter: 'pending',
+  witFilter: 'pending',
+  kycFilter: 'pending',
+  userSearch: '',
+  moreTab: 'investments',
+  settingsTab: 'config',
+  rejectCb: null,
+  notifTarget: null, // {uid, name} or null for all
+  listeners: [],
+  counts: { dep: 0, wit: 0, kyc: 0 }
+};
+
+// ─── AUTO LOGIN ──────────────────────────────────
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    S.admin = user;
+    document.getElementById('admin-meta').textContent = user.email;
+    startApp();
+  } else {
+    try {
+      await auth.signInWithEmailAndPassword('admin@trendingstore.com','sql@4444');
+    } catch(e) {
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+        await auth.createUserWithEmailAndPassword('admin@trendingstore.com','sql@4444');
+      }
+    }
+  }
+});
+
+function startApp() {
+  watchBadges();
+  goTab('dash');
+}
+
+// ─── BADGE WATCHERS ──────────────────────────────
+function watchBadges() {
+  const depU = db.collection('payments').where('status','==','pending').onSnapshot(s => {
+    S.counts.dep = s.size;
+    updBadge('badge-dep', s.size);
+  });
+  const witU = db.collection('withdrawals').where('status','==','pending').onSnapshot(s => {
+    S.counts.wit = s.size;
+    updBadge('badge-wit', s.size);
+  });
+  const kycU = db.collection('kyc').where('status','==','pending').onSnapshot(s => {
+    S.counts.kyc = s.size;
+    updBadge('badge-kyc', s.size);
+  });
+  S.listeners.push(depU, witU, kycU);
+}
+
+function updBadge(id, n) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = n > 99 ? '99+' : n;
+  el.style.display = n > 0 ? 'flex' : 'none';
+}
+
+// ─── NAVIGATION ──────────────────────────────────
+function goTab(tab) {
+  S.tab = tab;
+  document.querySelectorAll('.nav-item').forEach((el,i) => {
+    const tabs = ['dash','deposits','withdrawals','kyc','users','more'];
+    el.classList.toggle('active', tabs[i] === tab);
+  });
+  const c = document.getElementById('content');
+  c.scrollTop = 0;
+  if (tab === 'dash') renderDash();
+  else if (tab === 'deposits') renderDeposits();
+  else if (tab === 'withdrawals') renderWithdrawals();
+  else if (tab === 'kyc') renderKYC();
+  else if (tab === 'users') renderUsers();
+  else if (tab === 'more') renderMore();
+}
+
+// ─── DASHBOARD ───────────────────────────────────
+async function renderDash() {
+  const c = document.getElementById('content');
+  c.innerHTML = `<div class="spinner"></div>`;
+  try {
+    const [uSnap, depSnap, witSnap, kycSnap, invSnap] = await Promise.all([
+      db.collection('users').get(),
+      db.collection('payments').where('status','==','pending').get(),
+      db.collection('withdrawals').where('status','==','pending').get(),
+      db.collection('kyc').where('status','==','pending').get(),
+      db.collection('investments').where('status','==','active').get()
+    ]);
+
+    let totalBal = 0;
+    uSnap.docs.forEach(d => {
+      const u = d.data();
+      totalBal += (u.spotBalance||0)+(u.futuresBalance||0)+(u.marginBalance||0)+(u.investBalance||0)+(u.nftBalance||0);
+    });
+
+    // Recent deposits
+    const recDep = await db.collection('payments').orderBy('timestamp','desc').limit(5).get();
+    const recWit = await db.collection('withdrawals').orderBy('timestamp','desc').limit(5).get();
+
+    c.innerHTML = `
+    <div class="stat-grid fade">
+      <div class="stat-card green" onclick="goTab('users')"><div class="val">${uSnap.size}</div><div class="lbl">Total Users</div></div>
+      <div class="stat-card" style="cursor:default"><div class="val" style="color:var(--txt)">₹${fmt(totalBal)}</div><div class="lbl">Total Balances</div></div>
+      <div class="stat-card pending" onclick="goTab('deposits')"><div class="val">${depSnap.size}</div><div class="lbl">Pending Deposits</div></div>
+      <div class="stat-card pending" onclick="goTab('withdrawals')"><div class="val">${witSnap.size}</div><div class="lbl">Pending Withdrawals</div></div>
+      <div class="stat-card pending" onclick="goTab('kyc')"><div class="val">${kycSnap.size}</div><div class="lbl">Pending KYC</div></div>
+      <div class="stat-card green"><div class="val">${invSnap.size}</div><div class="lbl">Active Investments</div></div>
+    </div>
+
+    <div class="sec-title">Recent Deposits</div>
+    ${recDep.empty ? '<div class="empty" style="padding:16px"><i class="fas fa-inbox"></i>No deposits</div>' : recDep.docs.map(d => {
+      const x = d.data(); const ts = tsStr(x.timestamp);
+      const amt = x.type==='usdt_deposit' ? `${x.usdtAmount} USDT` : `₹${fmt(x.amount)}`;
+      return `<div class="row" onclick="openDeposit('${d.id}')">
+        <div class="row-top"><span class="row-name">${x.userName||'—'}</span><span class="row-amt">${amt}</span></div>
+        <div class="row-top"><span class="row-meta">${ts} • ${x.type==='usdt_deposit'?'USDT':'INR'}</span><span class="badge badge-${x.status}">${x.status}</span></div>
+      </div>`;
+    }).join('')}
+
+    <div class="sec-title" style="margin-top:14px">Recent Withdrawals</div>
+    ${recWit.empty ? '<div class="empty" style="padding:16px"><i class="fas fa-inbox"></i>No withdrawals</div>' : recWit.docs.map(d => {
+      const x = d.data(); const ts = tsStr(x.timestamp);
+      const amt = x.type==='usdt' ? `${x.amount} USDT` : `₹${fmt(x.amount)}`;
+      return `<div class="row" onclick="openWithdrawal('${d.id}')">
+        <div class="row-top"><span class="row-name">${x.userName||'—'}</span><span class="row-amt">${amt}</span></div>
+        <div class="row-top"><span class="row-meta">${ts} • ${x.type==='usdt'?'USDT':'INR'}</span><span class="badge badge-${x.status}">${x.status}</span></div>
+      </div>`;
+    }).join('')}
+    `;
+  } catch(e) {
+    c.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`;
+  }
+}
+
+// ─── DEPOSITS (payments collection) ──────────────
+async function renderDeposits() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="tabs">
+      ${['pending','approved','rejected','all'].map(f => `<div class="tab${f===S.depFilter?' active':''}" onclick="S.depFilter='${f}';renderDeposits()">${cap(f)}</div>`).join('')}
+    </div>
+    <div id="dep-list"><div class="spinner"></div></div>`;
+
+  try {
+    let q = db.collection('payments').orderBy('timestamp','desc').limit(50);
+    if (S.depFilter !== 'all') q = db.collection('payments').where('status','==',S.depFilter).orderBy('timestamp','desc').limit(50);
+    const snap = await q.get();
+    const list = document.getElementById('dep-list');
+    if (snap.empty) { list.innerHTML = `<div class="empty"><i class="fas fa-inbox"></i>No ${S.depFilter} deposits</div>`; return; }
+    list.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      const amt = x.type==='usdt_deposit' ? `${x.usdtAmount} USDT<br><small style="color:var(--txt2)">≈₹${fmt(x.inrEquivalent)}</small>` : `₹${fmt(x.amount)}`;
+      const ts = tsStr(x.timestamp);
+      return `<div class="row fade" onclick="openDeposit('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.userName||'—'}</div><div class="row-meta">${x.userEmail||''}</div></div>
+          <div style="text-align:right"><div class="row-amt">${amt}</div></div>
+        </div>
+        <div class="row-top" style="margin-top:6px">
+          <span class="row-meta">${ts} • ${x.type==='usdt_deposit'?'USDT Deposit':'INR Deposit'}</span>
+          <span class="badge badge-${x.status}">${x.status}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('dep-list').innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openDeposit(id) {
+  const snap = await db.collection('payments').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  const isUsdt = x.type === 'usdt_deposit';
+  const amt = isUsdt ? `${x.usdtAmount} USDT (≈₹${fmt(x.inrEquivalent)})` : `₹${fmt(x.amount)}`;
+
+  document.getElementById('detail-title').textContent = isUsdt ? 'USDT Deposit' : 'INR Deposit';
+  document.getElementById('detail-actions').innerHTML = '';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">User</span><span class="info-val">${x.userName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Email</span><span class="info-val">${x.userEmail||'—'}</span></div>
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${x.uid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Amount</span><span class="info-val" style="color:var(--grn)">${amt}</span></div>
+      <div class="info-row"><span class="info-key">Type</span><span class="info-val">${isUsdt?'USDT Deposit':'INR Deposit'}</span></div>
+      <div class="info-row"><span class="info-key">TxID / UTR</span><span class="info-val">${x.txid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">IP</span><span class="info-val">${x.ip||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Time</span><span class="info-val">${tsStr(x.timestamp)}</span></div>
+    </div>
+    ${x.screenshotUrl ? `
+    <div class="sec-title">Payment Screenshot</div>
+    <img src="${x.screenshotUrl}" style="width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--brd)" onclick="openImg('${x.screenshotUrl}')" onerror="this.style.display='none'">` : ''}
+    ${x.status === 'pending' ? `
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-grn" style="flex:1" onclick="approveDeposit('${id}','${x.uid}',${isUsdt?x.inrEquivalent||0:x.amount||0})"><i class="fas fa-check mr-1"></i>Approve</button>
+      <button class="btn btn-red" style="flex:1" onclick="startReject('Deposit','${id}',null)"><i class="fas fa-times mr-1"></i>Reject</button>
+    </div>` : `<div class="card" style="margin-top:12px;text-align:center;color:var(--txt2)">This deposit is already ${x.status}</div>`}
+    ${x.uid ? `<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="openNotifyFor('${x.uid}','${x.userName||'User'}')"><i class="fas fa-bell mr-1"></i>Notify User</button>` : ''}
+  `;
+  openDetail();
+}
+
+async function approveDeposit(id, uid, inrAmount) {
+  if (!confirm(`Approve this deposit? ₹${fmt(inrAmount)} will be credited to user's Spot balance.`)) return;
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('payments').doc(id), { status: 'approved', approvedAt: firebase.firestore.FieldValue.serverTimestamp(), approvedBy: S.admin.email });
+    batch.update(db.collection('users').doc(uid), { spotBalance: firebase.firestore.FieldValue.increment(inrAmount) });
+    batch.set(db.collection('notifications').doc(), {
+      uid, title: 'Deposit Approved ✅',
+      message: `Your deposit of ₹${fmt(inrAmount)} has been approved and credited to your Spot wallet.`,
+      type: 'deposit', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast('Deposit approved!', 'ok');
+    closeDetail();
+    renderDeposits();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── WITHDRAWALS ─────────────────────────────────
+async function renderWithdrawals() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="tabs">
+      ${['pending','approved','rejected','all'].map(f => `<div class="tab${f===S.witFilter?' active':''}" onclick="S.witFilter='${f}';renderWithdrawals()">${cap(f)}</div>`).join('')}
+    </div>
+    <div id="wit-list"><div class="spinner"></div></div>`;
+  try {
+    let q = db.collection('withdrawals').orderBy('timestamp','desc').limit(50);
+    if (S.witFilter !== 'all') q = db.collection('withdrawals').where('status','==',S.witFilter).orderBy('timestamp','desc').limit(50);
+    const snap = await q.get();
+    const list = document.getElementById('wit-list');
+    if (snap.empty) { list.innerHTML = `<div class="empty"><i class="fas fa-inbox"></i>No ${S.witFilter} withdrawals</div>`; return; }
+    list.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      const amt = x.type==='usdt' ? `${x.amount} USDT` : `₹${fmt(x.amount)}`;
+      return `<div class="row fade" onclick="openWithdrawal('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.userName||'—'}</div><div class="row-meta">${x.type==='usdt'?x.address?.slice(0,16)+'...':x.upi||''}</div></div>
+          <div style="text-align:right"><div class="row-amt">${amt}</div><div class="row-sub">${x.account||''} wallet</div></div>
+        </div>
+        <div class="row-top" style="margin-top:6px">
+          <span class="row-meta">${tsStr(x.timestamp)}</span>
+          <span class="badge badge-${x.status}">${x.status}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('wit-list').innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openWithdrawal(id) {
+  const snap = await db.collection('withdrawals').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  const isUsdt = x.type === 'usdt';
+  const amt = isUsdt ? `${x.amount} USDT (fee: ${x.fee||1} USDT)` : `₹${fmt(x.amount)}`;
+
+  document.getElementById('detail-title').textContent = isUsdt ? 'USDT Withdrawal' : 'INR Withdrawal';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">User</span><span class="info-val">${x.userName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${x.uid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Amount</span><span class="info-val" style="color:var(--red)">${amt}</span></div>
+      <div class="info-row"><span class="info-key">From Wallet</span><span class="info-val">${x.account||'—'} (${x.type})</span></div>
+      ${isUsdt ? `
+      <div class="info-row"><span class="info-key">Address</span><span class="info-val">${x.address||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Network</span><span class="info-val">${x.network||'BEP20'}</span></div>
+      ` : `
+      <div class="info-row"><span class="info-key">UPI ID</span><span class="info-val">${x.upi||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Account Name</span><span class="info-val">${x.accountHolderName||'—'}</span></div>
+      `}
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">IP</span><span class="info-val">${x.ip||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Time</span><span class="info-val">${tsStr(x.timestamp)}</span></div>
+    </div>
+    ${x.status === 'pending' ? `
+    <div class="btn-row" style="margin-top:4px">
+      <button class="btn btn-grn" style="flex:1" onclick="approveWithdrawal('${id}','${x.uid}')"><i class="fas fa-check mr-1"></i>Approve</button>
+      <button class="btn btn-red" style="flex:1" onclick="startReject('Withdrawal','${id}','${x.uid}',${x.amount||0},'${x.account||'spot'}','${x.type}')"><i class="fas fa-times mr-1"></i>Reject & Refund</button>
+    </div>` : `<div class="card" style="margin-top:12px;text-align:center;color:var(--txt2)">This withdrawal is already ${x.status}</div>`}
+    ${x.uid ? `<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="openNotifyFor('${x.uid}','${x.userName||'User'}')"><i class="fas fa-bell mr-1"></i>Notify User</button>` : ''}
+  `;
+  openDetail();
+}
+
+async function approveWithdrawal(id, uid) {
+  if (!confirm('Mark this withdrawal as approved/sent?')) return;
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('withdrawals').doc(id), { status: 'approved', approvedAt: firebase.firestore.FieldValue.serverTimestamp(), approvedBy: S.admin.email });
+    batch.set(db.collection('notifications').doc(), {
+      uid, title: 'Withdrawal Approved ✅',
+      message: `Your withdrawal request has been processed and sent.`,
+      type: 'withdrawal', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast('Withdrawal approved!', 'ok');
+    closeDetail(); renderWithdrawals();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── KYC ─────────────────────────────────────────
+async function renderKYC() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="tabs">
+      ${['pending','verified','rejected','all'].map(f => `<div class="tab${f===S.kycFilter?' active':''}" onclick="S.kycFilter='${f}';renderKYC()">${cap(f)}</div>`).join('')}
+    </div>
+    <div id="kyc-list"><div class="spinner"></div></div>`;
+  try {
+    let q = db.collection('kyc').orderBy('submittedAt','desc').limit(50);
+    if (S.kycFilter !== 'all') q = db.collection('kyc').where('status','==',S.kycFilter).orderBy('submittedAt','desc').limit(50);
+    const snap = await q.get();
+    const list = document.getElementById('kyc-list');
+    if (snap.empty) { list.innerHTML = `<div class="empty"><i class="fas fa-id-card"></i>No ${S.kycFilter} KYC</div>`; return; }
+    list.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      return `<div class="row fade" onclick="openKYC('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.userName||'—'}</div><div class="row-meta">${x.phone||''} • ${x.documentType?.toUpperCase()||''}</div></div>
+          <span class="badge badge-${x.status}">${x.status}</span>
+        </div>
+        <div class="row-meta" style="margin-top:4px">${x.email||''} • ${tsStr(x.submittedAt)}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('kyc-list').innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openKYC(id) {
+  const snap = await db.collection('kyc').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  document.getElementById('detail-title').textContent = 'KYC Verification';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">Name</span><span class="info-val">${x.userName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Email</span><span class="info-val">${x.email||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Phone</span><span class="info-val">${x.phone||'—'}</span></div>
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${x.uid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Document Type</span><span class="info-val">${x.documentType?.toUpperCase()||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Document No.</span><span class="info-val">${x.documentNumber||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">Submitted</span><span class="info-val">${tsStr(x.submittedAt)}</span></div>
+      ${x.rejectionReason ? `<div class="info-row"><span class="info-key">Reject Reason</span><span class="info-val" style="color:var(--red)">${x.rejectionReason}</span></div>` : ''}
+    </div>
+
+    <div class="sec-title">Selfie / Photo</div>
+    ${x.photoUrl ? `<img src="${x.photoUrl}" style="width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--brd);margin-bottom:12px" onclick="openImg('${x.photoUrl}')" onerror="this.style.display='none'">` : '<div class="empty" style="padding:12px">No photo</div>'}
+
+    <div class="sec-title">Document Image</div>
+    ${x.documentUrl ? `<img src="${x.documentUrl}" style="width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--brd);margin-bottom:12px" onclick="openImg('${x.documentUrl}')" onerror="this.style.display='none'">` : '<div class="empty" style="padding:12px">No document</div>'}
+
+    ${x.status === 'pending' ? `
+    <div class="btn-row">
+      <button class="btn btn-grn" style="flex:1" onclick="verifyKYC('${id}','${x.uid}')"><i class="fas fa-check mr-1"></i>Verify</button>
+      <button class="btn btn-red" style="flex:1" onclick="startRejectKYC('${id}','${x.uid}')"><i class="fas fa-times mr-1"></i>Reject</button>
+    </div>` : `<div class="card" style="margin-top:12px;text-align:center;color:var(--txt2)">KYC is already ${x.status}</div>`}
+    ${x.uid ? `<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="openNotifyFor('${x.uid}','${x.userName||'User'}')"><i class="fas fa-bell mr-1"></i>Notify User</button>` : ''}
+  `;
+  openDetail();
+}
+
+async function verifyKYC(id, uid) {
+  if (!confirm('Verify this KYC? User will be marked as verified.')) return;
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('kyc').doc(id), { status: 'verified', verifiedAt: firebase.firestore.FieldValue.serverTimestamp(), verifiedBy: S.admin.email });
+    batch.update(db.collection('users').doc(uid), { kycStatus: 'verified' });
+    batch.set(db.collection('notifications').doc(), {
+      uid, title: 'KYC Verified ✅',
+      message: 'Your identity has been verified successfully! You now have full access.',
+      type: 'kyc', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast('KYC verified!', 'ok');
+    closeDetail(); renderKYC();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── USERS ───────────────────────────────────────
+async function renderUsers() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="search-box">
+      <input class="search-inp" id="user-search" placeholder="Search name, email, phone, UID..." value="${S.userSearch}" oninput="S.userSearch=this.value" onkeydown="if(event.key==='Enter')doUserSearch()">
+      <button class="btn btn-grn" onclick="doUserSearch()"><i class="fas fa-search"></i></button>
+    </div>
+    <div id="user-list"><div class="spinner"></div></div>`;
+  doUserSearch();
+}
+
+async function doUserSearch() {
+  const list = document.getElementById('user-list');
+  if (!list) return;
+  list.innerHTML = '<div class="spinner"></div>';
+  try {
+    const q = S.userSearch.trim();
+    let snap;
+    if (q.length > 20) {
+      snap = await db.collection('users').doc(q).get();
+      snap = snap.exists ? {docs:[{id:snap.id, data:()=>snap.data(), exists:true}], empty:false} : {empty:true};
+    } else {
+      snap = await db.collection('users').orderBy('createdAt','desc').limit(60).get();
+    }
+    let docs = snap.empty ? [] : snap.docs;
+    if (q && q.length <= 20 && docs.length > 0) {
+      const lq = q.toLowerCase();
+      docs = docs.filter(d => {
+        const x = d.data();
+        return (x.name||'').toLowerCase().includes(lq) || (x.email||'').toLowerCase().includes(lq) || (x.phone||'').includes(q);
+      });
+    }
+    if (!docs.length) { list.innerHTML = `<div class="empty"><i class="fas fa-user-slash"></i>No users found</div>`; return; }
+    list.innerHTML = docs.map(d => {
+      const x = d.data();
+      const total = (x.spotBalance||0)+(x.futuresBalance||0)+(x.marginBalance||0)+(x.investBalance||0)+(x.nftBalance||0);
+      const avatar = x.avatar ? `<img src="${x.avatar}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid var(--brd);flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:38px;height:38px;border-radius:50%;background:var(--brd);display:flex;align-items:center;justify-content:center;color:var(--txt2);font-size:16px;flex-shrink:0"><i class="fas fa-user"></i></div>`;
+      return `<div class="row fade" onclick="openUser('${d.id}')">
+        <div class="row-top">
+          <div style="display:flex;align-items:center;gap:10px">
+            ${avatar}
+            <div>
+              <div class="row-name">${x.name||'—'}</div>
+              <div class="row-meta">${x.email||''}</div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="row-amt">₹${fmt(total)}</div>
+            <span class="badge badge-${x.kycStatus||'unverified'}" style="font-size:9px">${x.kycStatus||'unverified'}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { if(list) list.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openUser(uid) {
+  const snap = await db.collection('users').doc(uid).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  const total = (x.spotBalance||0)+(x.futuresBalance||0)+(x.marginBalance||0)+(x.investBalance||0)+(x.nftBalance||0);
+  const avatar = x.avatar ? `<img src="${x.avatar}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--grn)" onerror="this.outerHTML='<div style=width:64px;height:64px;border-radius:50%;background:var(--brd);display:flex;align-items:center;justify-content:center;font-size:28px>👤</div>'">` : `<div style="width:64px;height:64px;border-radius:50%;background:var(--brd);display:flex;align-items:center;justify-content:center;font-size:28px">👤</div>`;
+
+  document.getElementById('detail-title').textContent = x.name || 'User';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade" style="display:flex;align-items:center;gap:14px">
+      ${avatar}
+      <div>
+        <div style="font-weight:700;font-size:15px">${x.name||'—'}</div>
+        <div style="color:var(--txt2);font-size:12px">${x.email||''}</div>
+        <div style="color:var(--txt2);font-size:12px">${x.phone||''}</div>
+        <div style="margin-top:4px"><span class="badge badge-${x.kycStatus||'unverified'}">${x.kycStatus||'unverified'}</span>${x.isBlocked?'<span class="badge badge-rejected" style="margin-left:4px">BLOCKED</span>':''}</div>
+      </div>
+    </div>
+
+    <div class="sec-title">Balances</div>
+    <div class="card fade" style="padding:10px">
+      ${['spot','futures','margin','invest','nft'].map(k => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--brd)">
+        <span style="color:var(--txt2);text-transform:capitalize">${k}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--mono);font-weight:600">₹${fmt(x[k+'Balance']||0)}</span>
+          <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px" onclick="editBalance('${uid}','${k}Balance',${x[k+'Balance']||0})">Edit</button>
+        </div>
+      </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-weight:700">
+        <span>Total</span><span style="font-family:var(--mono);color:var(--grn)">₹${fmt(total)}</span>
+      </div>
+    </div>
+
+    <div class="sec-title">Account Info</div>
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${uid}</span></div>
+      <div class="info-row"><span class="info-key">KYC Status</span><span class="info-val"><span class="badge badge-${x.kycStatus||'unverified'}">${x.kycStatus||'unverified'}</span></span></div>
+      <div class="info-row"><span class="info-key">Referral Code</span><span class="info-val">${x.referralCode||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Joined</span><span class="info-val">${tsStr(x.createdAt)}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val">${x.isBlocked?'<span style="color:var(--red)">Blocked</span>':'<span style="color:var(--grn)">Active</span>'}</span></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn ${x.isBlocked?'btn-grn':'btn-red'}" style="flex:1" onclick="toggleBlock('${uid}',${!!x.isBlocked},'${x.name||'User'}')">${x.isBlocked?'<i class="fas fa-unlock mr-1"></i>Unblock':'<i class="fas fa-ban mr-1"></i>Block'}</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="openNotifyFor('${uid}','${x.name||'User'}')"><i class="fas fa-bell mr-1"></i>Notify</button>
+    </div>
+  `;
+  openDetail();
+}
+
+async function editBalance(uid, field, current) {
+  const val = prompt(`Edit ${field}\nCurrent: ₹${current}\n\nEnter new value (INR):`, current);
+  if (val === null || val === '') return;
+  const num = parseFloat(val);
+  if (isNaN(num) || num < 0) { toast('Invalid amount', 'err'); return; }
+  if (!confirm(`Set ${field} to ₹${fmt(num)} for this user?`)) return;
+  try {
+    await db.collection('users').doc(uid).update({ [field]: num });
+    toast(`${field} updated to ₹${fmt(num)}`, 'ok');
+    openUser(uid);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function toggleBlock(uid, isBlocked, name) {
+  if (!confirm(`${isBlocked?'Unblock':'Block'} user ${name}?`)) return;
+  try {
+    await db.collection('users').doc(uid).update({ isBlocked: !isBlocked });
+    toast(`User ${isBlocked?'unblocked':'blocked'}`, 'ok');
+    openUser(uid);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── MORE TAB ─────────────────────────────────────
+function renderMore() {
+  const c = document.getElementById('content');
+  c.innerHTML = `
+    <div class="tabs">
+      ${['investments','orders','nfts','invest-plans','reports','settings'].map(t => `<div class="tab${t===S.moreTab?' active':''}" onclick="S.moreTab='${t}';renderMoreSub()">${{investments:'Investments',orders:'Orders',nfts:'NFTs','invest-plans':'Plans',reports:'Reports',settings:'Settings'}[t]}</div>`).join('')}
+    </div>
+    <div id="more-sub"><div class="spinner"></div></div>`;
+  renderMoreSub();
+}
+
+function renderMoreSub() {
+  document.querySelectorAll('#content .tab').forEach(el => {
+    const tabs = ['investments','orders','nfts','invest-plans','reports','settings'];
+    tabs.forEach((t,i) => { if(el.textContent === {investments:'Investments',orders:'Orders',nfts:'NFTs','invest-plans':'Plans',reports:'Reports',settings:'Settings'}[t]) el.classList.toggle('active', t === S.moreTab); });
+  });
+  const s = document.getElementById('more-sub');
+  if (!s) return;
+  s.innerHTML = '<div class="spinner"></div>';
+  if (S.moreTab === 'investments') loadInvestments();
+  else if (S.moreTab === 'orders') loadOrders();
+  else if (S.moreTab === 'nfts') loadNFTs();
+  else if (S.moreTab === 'invest-plans') loadInvestPlans();
+  else if (S.moreTab === 'reports') loadReports();
+  else if (S.moreTab === 'settings') loadSettings();
+}
+
+// ─── INVESTMENTS ─────────────────────────────────
+async function loadInvestments() {
+  const s = document.getElementById('more-sub');
+  try {
+    const snap = await db.collection('investments').orderBy('startDate','desc').limit(60).get();
+    if (snap.empty) { s.innerHTML = `<div class="empty"><i class="fas fa-chart-line"></i>No investments</div>`; return; }
+    s.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      const end = x.endDate?.toDate ? x.endDate.toDate().toLocaleDateString('en-GB') : (x.endDate ? new Date(x.endDate).toLocaleDateString('en-GB') : '—');
+      return `<div class="row fade" onclick="openInvestment('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.userName||'—'}</div><div class="row-meta">${x.planName||'—'} • ${x.duration||'—'}d</div></div>
+          <div style="text-align:right"><div class="row-amt">₹${fmt(x.amount)}</div><span class="badge badge-${x.status}">${x.status}</span></div>
+        </div>
+        <div class="row-meta" style="margin-top:4px">End: ${end} • Est. return: ₹${fmt(x.estimatedReturn||0)}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openInvestment(id) {
+  const snap = await db.collection('investments').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  const endDate = x.endDate?.toDate ? x.endDate.toDate().toLocaleDateString('en-GB') : (x.endDate ? new Date(x.endDate).toLocaleDateString('en-GB') : '—');
+  document.getElementById('detail-title').textContent = 'Investment';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">User</span><span class="info-val">${x.userName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${x.uid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Plan</span><span class="info-val">${x.planName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Amount</span><span class="info-val" style="color:var(--grn)">₹${fmt(x.amount)}</span></div>
+      <div class="info-row"><span class="info-key">Duration</span><span class="info-val">${x.duration} days</span></div>
+      <div class="info-row"><span class="info-key">Est. Return</span><span class="info-val">₹${fmt(x.estimatedReturn||0)}</span></div>
+      <div class="info-row"><span class="info-key">Actual Return</span><span class="info-val">₹${fmt(x.actualReturn||0)}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">Start Date</span><span class="info-val">${x.purchaseDate||tsStr(x.startDate)}</span></div>
+      <div class="info-row"><span class="info-key">End Date</span><span class="info-val">${endDate}</span></div>
+    </div>
+    ${x.status === 'active' ? `
+    <div class="card" style="margin-top:0">
+      <div class="inp-label">Set Actual Return (₹)</div>
+      <input class="inp" id="inv-return" type="number" placeholder="0" value="${x.actualReturn||0}">
+      <div class="btn-row">
+        <button class="btn btn-grn" style="flex:1" onclick="completeInvestment('${id}','${x.uid}')"><i class="fas fa-check mr-1"></i>Complete & Pay</button>
+        <button class="btn btn-red" style="flex:1" onclick="cancelInvestment('${id}','${x.uid}',${x.amount})"><i class="fas fa-times mr-1"></i>Cancel & Refund</button>
+      </div>
+    </div>` : ''}
+  `;
+  openDetail();
+}
+
+async function completeInvestment(id, uid) {
+  const ret = parseFloat(document.getElementById('inv-return')?.value || 0);
+  const snap = await db.collection('investments').doc(id).get();
+  const x = snap.data();
+  const total = x.amount + ret;
+  if (!confirm(`Complete investment? Return ₹${fmt(ret)} to user's Spot wallet.\nTotal credited: ₹${fmt(total)}`)) return;
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('investments').doc(id), { status: 'matured', actualReturn: ret, completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    batch.update(db.collection('users').doc(uid), {
+      spotBalance: firebase.firestore.FieldValue.increment(total),
+      investBalance: firebase.firestore.FieldValue.increment(-x.amount)
+    });
+    batch.set(db.collection('notifications').doc(), {
+      uid, title: 'Investment Matured 💰',
+      message: `Your investment of ₹${fmt(x.amount)} has matured. ₹${fmt(total)} credited to Spot wallet.`,
+      type: 'success', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await batch.commit();
+    toast('Investment completed!', 'ok');
+    closeDetail(); loadInvestments();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function cancelInvestment(id, uid, amount) {
+  if (!confirm(`Cancel and refund ₹${fmt(amount)} to Spot wallet?`)) return;
+  try {
+    const batch = db.batch();
+    batch.update(db.collection('investments').doc(id), { status: 'cancelled', cancelledAt: firebase.firestore.FieldValue.serverTimestamp() });
+    batch.update(db.collection('users').doc(uid), {
+      spotBalance: firebase.firestore.FieldValue.increment(amount),
+      investBalance: firebase.firestore.FieldValue.increment(-amount)
+    });
+    await batch.commit();
+    toast('Investment cancelled & refunded', 'ok');
+    closeDetail(); loadInvestments();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ─── ORDERS ──────────────────────────────────────
+async function loadOrders() {
+  const s = document.getElementById('more-sub');
+  try {
+    const snap = await db.collection('orders').orderBy('createdAt','desc').limit(60).get();
+    if (snap.empty) { s.innerHTML = `<div class="empty"><i class="fas fa-chart-candlestick"></i>No orders</div>`; return; }
+    s.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      return `<div class="row fade" onclick="openOrder('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.pair||'—'}</div><div class="row-meta">${x.userName||x.uid?.slice(0,8)||'—'} • ${x.mode||'spot'}</div></div>
+          <div style="text-align:right">
+            <span class="badge badge-${x.side}">${x.side}</span>
+            <span class="badge badge-${x.status}" style="margin-left:4px">${x.status}</span>
+          </div>
+        </div>
+        <div class="row-top" style="margin-top:6px">
+          <span class="row-meta">Qty: ${x.quantity||0} • @$${fmt2(x.price||0)}</span>
+          <span class="row-amt" style="font-size:12px">Margin: ₹${fmt(x.margin||0)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openOrder(id) {
+  const snap = await db.collection('orders').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  document.getElementById('detail-title').textContent = `${x.pair} Order`;
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">UID</span><span class="info-val">${x.uid||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Pair</span><span class="info-val">${x.pair||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Side</span><span class="info-val"><span class="badge badge-${x.side}">${x.side}</span></span></div>
+      <div class="info-row"><span class="info-key">Mode</span><span class="info-val">${x.mode||'spot'}</span></div>
+      <div class="info-row"><span class="info-key">Type</span><span class="info-val">${x.type||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Price</span><span class="info-val">$${fmt2(x.price||0)}</span></div>
+      <div class="info-row"><span class="info-key">Quantity</span><span class="info-val">${x.quantity||0}</span></div>
+      <div class="info-row"><span class="info-key">Leverage</span><span class="info-val">${x.leverage||1}x</span></div>
+      <div class="info-row"><span class="info-key">Margin</span><span class="info-val">₹${fmt(x.margin||0)}</span></div>
+      <div class="info-row"><span class="info-key">Fee</span><span class="info-val">₹${fmt(x.tradingFee||0)}</span></div>
+      <div class="info-row"><span class="info-key">PnL</span><span class="info-val" style="color:${(x.pnl||0)>=0?'var(--grn)':'var(--red)'}">₹${fmt(x.pnl||0)}</span></div>
+      <div class="info-row"><span class="info-key">TP</span><span class="info-val">${x.tpPrice||'—'}</span></div>
+      <div class="info-row"><span class="info-key">SL</span><span class="info-val">${x.slPrice||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">IP</span><span class="info-val">${x.ip||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Time</span><span class="info-val">${tsStr(x.createdAt)}</span></div>
+    </div>`;
+  openDetail();
+}
+
+// ─── NFTs ────────────────────────────────────────
+async function loadNFTs() {
+  const s = document.getElementById('more-sub');
+  try {
+    const snap = await db.collection('nfts').orderBy('createdAt','desc').get();
+    if (snap.empty) { s.innerHTML = `<div class="empty"><i class="fas fa-image"></i>No NFTs<br><br><button class="btn btn-grn" onclick="openAddNFT()">+ Add NFT</button></div>`; return; }
+    s.innerHTML = `<button class="btn btn-grn" style="width:100%;margin-bottom:10px" onclick="openAddNFT()"><i class="fas fa-plus mr-1"></i>Add New NFT</button>` + snap.docs.map(d => {
+      const x = d.data();
+      return `<div class="row fade" onclick="openNFT('${d.id}')">
+        <div style="display:flex;gap:10px;align-items:center">
+          ${x.image ? `<img src="${x.image}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid var(--brd)" onerror="this.style.display='none'">` : `<div style="width:48px;height:48px;border-radius:8px;background:var(--brd);display:flex;align-items:center;justify-content:center;font-size:20px">🖼️</div>`}
+          <div style="flex:1">
+            <div class="row-name">${x.name||'—'}</div>
+            <div class="row-meta">${x.rarity||''} • ₹${fmt(x.price||0)}</div>
+          </div>
+          <span class="badge badge-${x.status}">${x.status}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openNFT(id) {
+  const snap = await db.collection('nfts').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  document.getElementById('detail-title').textContent = 'NFT Details';
+  document.getElementById('detail-body').innerHTML = `
+    ${x.image ? `<img src="${x.image}" style="width:100%;border-radius:12px;margin-bottom:12px;cursor:pointer;max-height:250px;object-fit:cover" onclick="openImg('${x.image}')">` : ''}
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">Name</span><span class="info-val">${x.name||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Price</span><span class="info-val" style="color:var(--grn)">₹${fmt(x.price||0)}</span></div>
+      <div class="info-row"><span class="info-key">Rarity</span><span class="info-val">${x.rarity||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Daily Profit</span><span class="info-val">${x.dailyProfit||0}%</span></div>
+      <div class="info-row"><span class="info-key">Hold Days</span><span class="info-val">${x.holdDays||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge badge-${x.status}">${x.status}</span></span></div>
+      <div class="info-row"><span class="info-key">Description</span><span class="info-val">${x.description||'—'}</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn ${x.status==='available'?'btn-red':'btn-grn'}" style="flex:1" onclick="toggleNFTStatus('${id}','${x.status}')">${x.status==='available'?'Hide NFT':'Show NFT'}</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="deleteNFT('${id}','${x.name}')"><i class="fas fa-trash mr-1"></i>Delete</button>
+    </div>`;
+  openDetail();
+}
+
+async function toggleNFTStatus(id, current) {
+  const newStatus = current === 'available' ? 'hidden' : 'available';
+  if (!confirm(`${newStatus==='available'?'Show':'Hide'} this NFT?`)) return;
+  try {
+    await db.collection('nfts').doc(id).update({ status: newStatus });
+    toast(`NFT ${newStatus}`, 'ok');
+    closeDetail(); loadNFTs();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function deleteNFT(id, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await db.collection('nfts').doc(id).delete();
+    toast('NFT deleted', 'ok');
+    closeDetail(); loadNFTs();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function openAddNFT() {
+  document.getElementById('detail-title').textContent = 'Add New NFT';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="inp-group"><div class="inp-label">Name *</div><input class="inp" id="nft-name" placeholder="NFT Name"></div>
+      <div class="inp-group"><div class="inp-label">Image URL *</div><input class="inp" id="nft-image" placeholder="https://..."></div>
+      <div class="inp-group"><div class="inp-label">Price (₹) *</div><input class="inp" id="nft-price" type="number" placeholder="0"></div>
+      <div class="inp-group"><div class="inp-label">Daily Profit (%)</div><input class="inp" id="nft-daily" type="number" placeholder="0.5"></div>
+      <div class="inp-group"><div class="inp-label">Hold Days</div><input class="inp" id="nft-hold" type="number" placeholder="30"></div>
+      <div class="inp-group"><div class="inp-label">Rarity</div>
+        <select class="inp" id="nft-rarity">
+          <option>Common</option><option>Uncommon</option><option>Rare</option><option>Epic</option><option>Legendary</option>
+        </select>
+      </div>
+      <div class="inp-group"><div class="inp-label">Description</div><textarea class="inp" id="nft-desc" placeholder="Description..."></textarea></div>
+      <button class="btn btn-grn" style="width:100%" onclick="saveNFT()"><i class="fas fa-save mr-1"></i>Save NFT</button>
+    </div>`;
+  openDetail();
+}
+
+async function saveNFT() {
+  const name = document.getElementById('nft-name')?.value.trim();
+  const image = document.getElementById('nft-image')?.value.trim();
+  const price = parseFloat(document.getElementById('nft-price')?.value || 0);
+  if (!name || !image || !price) { toast('Name, image URL & price required', 'err'); return; }
+  try {
+    await db.collection('nfts').add({
+      name, image, price,
+      dailyProfit: parseFloat(document.getElementById('nft-daily')?.value || 0),
+      holdDays: parseInt(document.getElementById('nft-hold')?.value || 0),
+      rarity: document.getElementById('nft-rarity')?.value || 'Common',
+      description: document.getElementById('nft-desc')?.value || '',
+      status: 'available',
+      soldCount: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('NFT added!', 'ok');
+    closeDetail(); loadNFTs();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ─── INVEST PLANS ────────────────────────────────
+async function loadInvestPlans() {
+  const s = document.getElementById('more-sub');
+  try {
+    const snap = await db.collection('investPlans').get();
+    if (snap.empty) { s.innerHTML = `<div class="empty"><i class="fas fa-chart-line"></i>No plans<br><br><button class="btn btn-grn" onclick="openAddPlan()">+ Add Plan</button></div>`; return; }
+    s.innerHTML = `<button class="btn btn-grn" style="width:100%;margin-bottom:10px" onclick="openAddPlan()"><i class="fas fa-plus mr-1"></i>Add New Plan</button>` + snap.docs.map(d => {
+      const x = d.data();
+      return `<div class="row fade" onclick="openPlan('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.name||'—'}</div><div class="row-meta">${x.duration}d • ${x.risk||''} risk • ${x.returnRate||x.returns||0}% return</div></div>
+          <div style="text-align:right">
+            <div class="row-amt" style="font-size:12px">₹${fmt(x.min||0)}–₹${fmt(x.max||0)}</div>
+            <span class="badge ${x.active?'badge-active':'badge-rejected'}">${x.active?'Active':'Inactive'}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openPlan(id) {
+  const snap = await db.collection('investPlans').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  document.getElementById('detail-title').textContent = 'Investment Plan';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">Name</span><span class="info-val">${x.name||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Duration</span><span class="info-val">${x.duration} days</span></div>
+      <div class="info-row"><span class="info-key">Return Rate</span><span class="info-val" style="color:var(--grn)">${x.returnRate||x.returns||0}%</span></div>
+      <div class="info-row"><span class="info-key">Min Amount</span><span class="info-val">₹${fmt(x.min||x.minAmount||0)}</span></div>
+      <div class="info-row"><span class="info-key">Max Amount</span><span class="info-val">₹${fmt(x.max||x.maxAmount||0)}</span></div>
+      <div class="info-row"><span class="info-key">Risk</span><span class="info-val">${x.risk||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val"><span class="badge ${x.active?'badge-active':'badge-rejected'}">${x.active?'Active':'Inactive'}</span></span></div>
+      <div class="info-row"><span class="info-key">Description</span><span class="info-val">${x.description||'—'}</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn ${x.active?'btn-red':'btn-grn'}" style="flex:1" onclick="togglePlan('${id}',${!!x.active})">${x.active?'Deactivate':'Activate'}</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="deletePlan('${id}','${x.name}')"><i class="fas fa-trash mr-1"></i>Delete</button>
+    </div>`;
+  openDetail();
+}
+
+async function togglePlan(id, active) {
+  try {
+    await db.collection('investPlans').doc(id).update({ active: !active });
+    toast(`Plan ${active?'deactivated':'activated'}`, 'ok');
+    closeDetail(); loadInvestPlans();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function deletePlan(id, name) {
+  if (!confirm(`Delete plan "${name}"?`)) return;
+  try { await db.collection('investPlans').doc(id).delete(); toast('Plan deleted','ok'); closeDetail(); loadInvestPlans(); }
+  catch(e) { toast(e.message,'err'); }
+}
+
+function openAddPlan() {
+  document.getElementById('detail-title').textContent = 'Add Investment Plan';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="inp-group"><div class="inp-label">Plan Name *</div><input class="inp" id="pl-name" placeholder="e.g. Gold Plan"></div>
+      <div class="inp-group"><div class="inp-label">Duration (days) *</div><input class="inp" id="pl-dur" type="number" placeholder="30"></div>
+      <div class="inp-group"><div class="inp-label">Return Rate (%) *</div><input class="inp" id="pl-ret" type="number" placeholder="10"></div>
+      <div class="inp-group"><div class="inp-label">Min Amount (₹) *</div><input class="inp" id="pl-min" type="number" placeholder="1000"></div>
+      <div class="inp-group"><div class="inp-label">Max Amount (₹) *</div><input class="inp" id="pl-max" type="number" placeholder="100000"></div>
+      <div class="inp-group"><div class="inp-label">Risk Level</div>
+        <select class="inp" id="pl-risk"><option>low</option><option>medium</option><option>high</option></select>
+      </div>
+      <div class="inp-group"><div class="inp-label">Description</div><textarea class="inp" id="pl-desc" placeholder="Plan details..."></textarea></div>
+      <button class="btn btn-grn" style="width:100%" onclick="savePlan()"><i class="fas fa-save mr-1"></i>Save Plan</button>
+    </div>`;
+  openDetail();
+}
+
+async function savePlan() {
+  const name = document.getElementById('pl-name')?.value.trim();
+  const dur = parseInt(document.getElementById('pl-dur')?.value||0);
+  const ret = parseFloat(document.getElementById('pl-ret')?.value||0);
+  const min = parseFloat(document.getElementById('pl-min')?.value||0);
+  const max = parseFloat(document.getElementById('pl-max')?.value||0);
+  if (!name || !dur || !ret || !min || !max) { toast('All fields required','err'); return; }
+  try {
+    await db.collection('investPlans').add({
+      name, duration: dur, returnRate: ret, min, max,
+      risk: document.getElementById('pl-risk')?.value||'medium',
+      description: document.getElementById('pl-desc')?.value||'',
+      active: true, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('Plan added!','ok');
+    closeDetail(); loadInvestPlans();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ─── REPORTS ─────────────────────────────────────
+async function loadReports() {
+  const s = document.getElementById('more-sub');
+  try {
+    const snap = await db.collection('reports').orderBy('createdAt','desc').limit(60).get();
+    if (snap.empty) { s.innerHTML = `<div class="empty"><i class="fas fa-flag"></i>No reports</div>`; return; }
+    s.innerHTML = snap.docs.map(d => {
+      const x = d.data();
+      return `<div class="row fade" onclick="openReport('${d.id}')">
+        <div class="row-top">
+          <div><div class="row-name">${x.userName||'—'}</div><div class="row-meta">${x.subject||'—'}</div></div>
+          <span class="badge badge-${x.status==='open'?'pending':x.status==='resolved'?'approved':'rejected'}">${x.status}</span>
+        </div>
+        <div class="row-meta" style="margin-top:4px">${x.type||''} • ${tsStr(x.createdAt)}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function openReport(id) {
+  const snap = await db.collection('reports').doc(id).get();
+  if (!snap.exists) return;
+  const x = snap.data();
+  document.getElementById('detail-title').textContent = 'User Report';
+  document.getElementById('detail-body').innerHTML = `
+    <div class="card fade">
+      <div class="info-row"><span class="info-key">User</span><span class="info-val">${x.userName||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Email</span><span class="info-val">${x.userEmail||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Type</span><span class="info-val">${x.type||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Subject</span><span class="info-val">${x.subject||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Status</span><span class="info-val">${x.status||'—'}</span></div>
+      <div class="info-row"><span class="info-key">Time</span><span class="info-val">${tsStr(x.createdAt)}</span></div>
+    </div>
+    ${x.description ? `<div class="card" style="margin-top:0;color:var(--txt2);font-size:13px;line-height:1.5">${x.description}</div>` : ''}
+    ${x.fileUrl ? `
+    <div class="sec-title">Attachment</div>
+    <img src="${x.fileUrl}" style="width:100%;border-radius:10px;cursor:pointer;border:1px solid var(--brd)" onclick="openImg('${x.fileUrl}')" onerror="this.style.display='none'">
+    ` : ''}
+    ${x.status === 'open' ? `
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-grn" style="flex:1" onclick="resolveReport('${id}','${x.uid}')">Mark Resolved</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeReportItem('${id}')">Close</button>
+    </div>` : ''}
+    ${x.uid ? `<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="openNotifyFor('${x.uid}','${x.userName||'User'}')"><i class="fas fa-bell mr-1"></i>Reply via Notification</button>` : ''}
+  `;
+  openDetail();
+}
+
+async function resolveReport(id, uid) {
+  try {
+    await db.collection('reports').doc(id).update({ status: 'resolved', resolvedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    if (uid) {
+      await db.collection('notifications').add({ uid, title: 'Report Resolved ✅', message: 'Your report has been reviewed and resolved.', type: 'info', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    toast('Report resolved','ok'); closeDetail(); loadReports();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function closeReportItem(id) {
+  try {
+    await db.collection('reports').doc(id).update({ status: 'closed' });
+    toast('Report closed','ok'); closeDetail(); loadReports();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ─── SETTINGS ────────────────────────────────────
+async function loadSettings() {
+  const s = document.getElementById('more-sub');
+  try {
+    const doc = await db.collection('admin').doc('config').get();
+    const cfg = doc.exists ? doc.data() : {};
+    s.innerHTML = `
+    <div class="card fade">
+      <div class="sec-title">Payment Settings</div>
+      <div class="inp-group"><div class="inp-label">UPI ID (for INR deposits)</div><input class="inp" id="cfg-upi" value="${cfg.upi||''}" placeholder="admin@upi"></div>
+      <div class="inp-group"><div class="inp-label">USDT Wallet Address (BEP20)</div><input class="inp" id="cfg-usdt-addr" value="${cfg.usdtAddress||''}" placeholder="0x..."></div>
+      <div class="inp-group"><div class="inp-label">USDT to INR Rate (₹ per USDT)</div><input class="inp" id="cfg-rate" type="number" value="${cfg.exchangeRate||83}" placeholder="83"></div>
+      <button class="btn btn-grn" style="width:100%" onclick="saveConfig()"><i class="fas fa-save mr-1"></i>Save Settings</button>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="sec-title">Send Notification to All Users</div>
+      <div class="inp-group"><div class="inp-label">Title</div><input class="inp" id="bulk-title" placeholder="Title"></div>
+      <div class="inp-group"><div class="inp-label">Message</div><textarea class="inp" id="bulk-msg" placeholder="Message..."></textarea></div>
+      <div class="inp-group"><div class="inp-label">Type</div>
+        <select class="inp" id="bulk-type">
+          <option value="info">Info</option><option value="warning">Warning</option><option value="success">Success</option>
+        </select>
+      </div>
+      <button class="btn btn-yel" style="width:100%" onclick="sendBulkNotif()"><i class="fas fa-bullhorn mr-1"></i>Send to All Users</button>
+    </div>
+
+    <button class="btn btn-red" style="width:100%;margin-top:4px" onclick="doLogout()"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+    `;
+  } catch(e) { s.innerHTML = `<div class="empty"><i class="fas fa-exclamation-triangle" style="color:var(--red)"></i>${e.message}</div>`; }
+}
+
+async function saveConfig() {
+  const upi = document.getElementById('cfg-upi')?.value.trim();
+  const usdtAddress = document.getElementById('cfg-usdt-addr')?.value.trim();
+  const exchangeRate = parseFloat(document.getElementById('cfg-rate')?.value||83);
+  try {
+    await db.collection('admin').doc('config').set({ upi, usdtAddress, exchangeRate }, { merge: true });
+    toast('Settings saved!','ok');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function sendBulkNotif() {
+  const title = document.getElementById('bulk-title')?.value.trim();
+  const message = document.getElementById('bulk-msg')?.value.trim();
+  const type = document.getElementById('bulk-type')?.value;
+  if (!title || !message) { toast('Title and message required','err'); return; }
+  if (!confirm(`Send "${title}" to ALL users?`)) return;
+  try {
+    const snap = await db.collection('users').get();
+    const batch = db.batch();
+    let i = 0;
+    for (const doc of snap.docs) {
+      batch.set(db.collection('notifications').doc(), {
+        uid: doc.id, title, message, type, read: false,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      i++;
+      if (i >= 400) break; // Firestore batch limit
+    }
+    await batch.commit();
+    toast(`Sent to ${i} users!`,'ok');
+    document.getElementById('bulk-title').value = '';
+    document.getElementById('bulk-msg').value = '';
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function doLogout() {
+  if (!confirm('Logout?')) return;
+  await auth.signOut();
+  location.reload();
+}
+
+// ─── REJECT FLOW ──────────────────────────────────
+let _rejectId, _rejectUid, _rejectAmt, _rejectAcct, _rejectType, _rejectKyc;
+
+function startReject(label, id, uid, amount, account, type) {
+  _rejectId = id; _rejectUid = uid; _rejectAmt = amount; _rejectAcct = account; _rejectType = type; _rejectKyc = false;
+  document.getElementById('reject-title').textContent = `Reject ${label}`;
+  document.getElementById('reject-reason').value = '';
+  document.getElementById('reject-modal').classList.add('open');
+}
+
+function startRejectKYC(id, uid) {
+  _rejectId = id; _rejectUid = uid; _rejectKyc = true;
+  document.getElementById('reject-title').textContent = 'Reject KYC';
+  document.getElementById('reject-reason').value = '';
+  document.getElementById('reject-modal').classList.add('open');
+}
+
+function closeRejectModal() { document.getElementById('reject-modal').classList.remove('open'); }
+
+async function confirmReject() {
+  const reason = document.getElementById('reject-reason').value.trim();
+  closeRejectModal();
+  try {
+    if (_rejectKyc) {
+      // KYC reject
+      const batch = db.batch();
+      batch.update(db.collection('kyc').doc(_rejectId), { status: 'rejected', rejectionReason: reason||'Documents not accepted', rejectedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      batch.update(db.collection('users').doc(_rejectUid), { kycStatus: 'rejected' });
+      if (_rejectUid) batch.set(db.collection('notifications').doc(), { uid: _rejectUid, title: 'KYC Rejected ❌', message: reason||'Your KYC was rejected. Please resubmit with clear documents.', type: 'kyc', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      await batch.commit();
+      toast('KYC rejected','ok'); closeDetail(); renderKYC();
+    } else if (_rejectType === 'inr' || _rejectType === 'usdt') {
+      // Withdrawal reject — refund
+      const balKey = (_rejectAcct||'spot') + 'Balance';
+      const batch = db.batch();
+      batch.update(db.collection('withdrawals').doc(_rejectId), { status: 'rejected', rejectionReason: reason, rejectedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      if (_rejectUid && _rejectAmt) batch.update(db.collection('users').doc(_rejectUid), { [balKey]: firebase.firestore.FieldValue.increment(_rejectAmt) });
+      if (_rejectUid) batch.set(db.collection('notifications').doc(), { uid: _rejectUid, title: 'Withdrawal Rejected ❌', message: reason||'Your withdrawal was rejected and amount has been refunded.', type: 'withdrawal', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      await batch.commit();
+      toast('Withdrawal rejected & refunded','ok'); closeDetail(); renderWithdrawals();
+    } else {
+      // Deposit reject
+      const batch = db.batch();
+      batch.update(db.collection('payments').doc(_rejectId), { status: 'rejected', rejectionReason: reason, rejectedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      if (_rejectUid) batch.set(db.collection('notifications').doc(), { uid: _rejectUid, title: 'Deposit Rejected ❌', message: reason||'Your deposit was rejected. Please contact support.', type: 'deposit', read: false, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      await batch.commit();
+      toast('Deposit rejected','ok'); closeDetail(); renderDeposits();
+    }
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ─── NOTIFICATION ─────────────────────────────────
+function openNotifyFor(uid, name) {
+  S.notifTarget = { uid, name };
+  document.getElementById('notify-modal-title').textContent = `Notify: ${name}`;
+  document.getElementById('notif-title').value = '';
+  document.getElementById('notif-msg').value = '';
+  document.getElementById('notify-modal').classList.add('open');
+}
+
+function closeNotifyModal() { document.getElementById('notify-modal').classList.remove('open'); S.notifTarget = null; }
+
+async function sendNotification() {
+  const title = document.getElementById('notif-title').value.trim();
+  const message = document.getElementById('notif-msg').value.trim();
+  const type = document.getElementById('notif-type').value;
+  if (!title || !message) { toast('Title and message required','err'); return; }
+  try {
+    await db.collection('notifications').add({
+      uid: S.notifTarget.uid, title, message, type, read: false,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('Notification sent!','ok');
+    closeNotifyModal();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ─── DETAIL PANEL ────────────────────────────────
+function openDetail() { document.getElementById('detail-panel').classList.add('open'); }
+function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); }
+
+// ─── IMG MODAL ───────────────────────────────────
+function openImg(url) { document.getElementById('img-modal-img').src = url; document.getElementById('img-modal').classList.add('open'); }
+function closeImg() { document.getElementById('img-modal').classList.remove('open'); }
+
+// ─── TOAST ───────────────────────────────────────
+let _toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type ? `show ${type}` : 'show';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 2800);
+}
+
+// ─── HELPERS ─────────────────────────────────────
+function fmt(n) { return (n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+function fmt2(n) { return (n||0).toLocaleString('en-US', {maximumFractionDigits:4}); }
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+function tsStr(ts) {
+  if (!ts) return '—';
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  } catch { return '—'; }
+}
+
+// ─── SWIPE BACK ──────────────────────────────────
+let _sx = 0;
+document.getElementById('detail-panel').addEventListener('touchstart', e => { _sx = e.touches[0].clientX; }, {passive:true});
+document.getElementById('detail-panel').addEventListener('touchend', e => { if (e.changedTouches[0].clientX - _sx > 80) closeDetail(); }, {passive:true});
+</script>
+</body>
+  </html> 
